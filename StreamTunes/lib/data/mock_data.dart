@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/song.dart';
+
 import '../models/artist.dart';
 import '../models/playlist.dart';
+import '../models/song.dart';
 
 class MockData {
   // Artistas Independientes
@@ -198,7 +199,8 @@ class MockData {
       Playlist(
         id: 'pl_3',
         name: 'Acústicos de la Tierra',
-        description: 'Canciones puras de madera, cuerdas y viento para conectar.',
+        description:
+            'Canciones puras de madera, cuerdas y viento para conectar.',
         songs: [songs[3], songs[7]],
         coverGradient: const [Color(0xFFF7971E), Color(0xFFFFD200)],
         icon: Icons.park,

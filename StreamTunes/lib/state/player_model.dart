@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
+
 import '../models/song.dart';
 
 class PlayerModel extends ChangeNotifier {
@@ -19,7 +21,8 @@ class PlayerModel extends ChangeNotifier {
   Song? get currentSong => _currentSong;
   bool get hasSong => _currentSong != null;
   String get songTitle => _currentSong?.title ?? 'Ninguna canción seleccionada';
-  String get artistName => _currentSong?.artistName ?? 'Selecciona un artista independiente';
+  String get artistName =>
+      _currentSong?.artistName ?? 'Selecciona un artista independiente';
   bool get isPlaying => _isPlaying;
   Duration get currentPosition => _currentPosition;
   Duration get totalDuration => _totalDuration;
@@ -29,18 +32,25 @@ class PlayerModel extends ChangeNotifier {
 
   double get progress {
     if (_totalDuration.inMilliseconds == 0) return 0.0;
-    return (_currentPosition.inMilliseconds / _totalDuration.inMilliseconds).clamp(0.0, 1.0);
+    return (_currentPosition.inMilliseconds / _totalDuration.inMilliseconds)
+        .clamp(0.0, 1.0);
   }
 
   String get formattedCurrentPosition {
     final minutes = _currentPosition.inMinutes;
-    final seconds = _currentPosition.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final seconds = _currentPosition.inSeconds
+        .remainder(60)
+        .toString()
+        .padLeft(2, '0');
     return '$minutes:$seconds';
   }
 
   String get formattedTotalDuration {
     final minutes = _totalDuration.inMinutes;
-    final seconds = _totalDuration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final seconds = _totalDuration.inSeconds
+        .remainder(60)
+        .toString()
+        .padLeft(2, '0');
     return '$minutes:$seconds';
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/song.dart';
+
 import '../data/mock_data.dart';
+import '../models/song.dart';
 import '../theme/app_theme.dart';
 
 class UploadView extends StatefulWidget {
@@ -64,9 +65,7 @@ class _UploadViewState extends State<UploadView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Subir Música'),
-      ),
+      appBar: AppBar(title: const Text('Subir Música')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
         children: [
@@ -85,7 +84,10 @@ class _UploadViewState extends State<UploadView> {
           const SizedBox(height: 20),
 
           // Título
-          const Text('Título del tema', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const Text(
+            'Título del tema',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
           TextField(
             controller: _titleController,
@@ -95,13 +97,19 @@ class _UploadViewState extends State<UploadView> {
               hintStyle: const TextStyle(color: AppTheme.textMuted),
               filled: true,
               fillColor: AppTheme.surfaceElevated,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
           const SizedBox(height: 16),
 
           // Archivo
-          const Text('Archivo de audio (.mp3)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const Text(
+            'Archivo de audio (.mp3)',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
           ElevatedButton.icon(
             onPressed: () {
@@ -117,14 +125,19 @@ class _UploadViewState extends State<UploadView> {
           const SizedBox(height: 16),
 
           // Portada
-          const Text('Foto de portada', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const Text(
+            'Foto de portada',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
           ElevatedButton.icon(
             onPressed: () {
               setState(() => _hasCover = true);
             },
             icon: const Icon(Icons.image),
-            label: Text(_hasCover ? 'Portada seleccionada ✓' : 'Seleccionar imagen'),
+            label: Text(
+              _hasCover ? 'Portada seleccionada ✓' : 'Seleccionar imagen',
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.surfaceElevated,
               foregroundColor: Colors.white,
@@ -140,7 +153,10 @@ class _UploadViewState extends State<UploadView> {
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            child: const Text('Subir Tema', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Subir Tema',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'song.dart';
 
 class Playlist {
@@ -18,8 +19,8 @@ class Playlist {
     DateTime? createdAt,
     this.coverGradient = const [Color(0xFF450af5), Color(0xFFc4efd9)],
     this.icon = Icons.queue_music,
-  })  : songs = songs ?? [],
-        createdAt = createdAt ?? DateTime.now();
+  }) : songs = songs ?? [],
+       createdAt = createdAt ?? DateTime.now();
 
   int get songCount => songs.length;
 

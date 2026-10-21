@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../models/song.dart';
-import '../state/player_model.dart';
 import '../state/library_model.dart';
+import '../state/player_model.dart';
 import '../theme/app_theme.dart';
 
 class SongTile extends StatelessWidget {
@@ -21,12 +22,18 @@ class SongTile extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surfaceElevated,
-        title: const Text('Agregar a Playlist', style: TextStyle(color: Colors.white, fontSize: 16)),
+        title: const Text(
+          'Agregar a Playlist',
+          style: TextStyle(color: Colors.white, fontSize: 16),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: libraryModel.playlists.map((pl) {
             return ListTile(
-              leading: const Icon(Icons.queue_music, color: AppTheme.primaryGreen),
+              leading: const Icon(
+                Icons.queue_music,
+                color: AppTheme.primaryGreen,
+              ),
               title: Text(pl.name, style: const TextStyle(color: Colors.white)),
               onTap: () {
                 libraryModel.addSongToPlaylist(pl.id, song);
@@ -53,10 +60,14 @@ class SongTile extends StatelessWidget {
     return ListenableBuilder(
       listenable: playerModel,
       builder: (context, _) {
-        final isPlaying = playerModel.currentSong?.id == song.id && playerModel.isPlaying;
+        final isPlaying =
+            playerModel.currentSong?.id == song.id && playerModel.isPlaying;
 
         return ListTile(
-          leading: Icon(song.icon, color: isPlaying ? AppTheme.primaryGreen : Colors.white70),
+          leading: Icon(
+            song.icon,
+            color: isPlaying ? AppTheme.primaryGreen : Colors.white70,
+          ),
           title: Text(
             song.title,
             style: TextStyle(

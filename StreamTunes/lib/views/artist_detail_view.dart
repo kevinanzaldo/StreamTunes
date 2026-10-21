@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+
+import '../data/mock_data.dart';
 import '../models/artist.dart';
-import '../state/player_model.dart';
 import '../state/library_model.dart';
+import '../state/player_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/song_tile.dart';
-import '../data/mock_data.dart';
 
 class ArtistDetailView extends StatelessWidget {
   final Artist artist;
@@ -25,9 +26,7 @@ class ArtistDetailView extends StatelessWidget {
       ..sort((a, b) => b.playCount.compareTo(a.playCount));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(artist.name),
-      ),
+      appBar: AppBar(title: Text(artist.name)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
         children: [
@@ -36,20 +35,31 @@ class ArtistDetailView extends StatelessWidget {
             child: CircleAvatar(
               radius: 40,
               backgroundColor: AppTheme.surfaceElevated,
-              child: Icon(artist.avatarIcon, size: 40, color: AppTheme.primaryGreen),
+              child: Icon(
+                artist.avatarIcon,
+                size: 40,
+                color: AppTheme.primaryGreen,
+              ),
             ),
           ),
           const SizedBox(height: 12),
           Center(
             child: Text(
               artist.name,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
           Center(
             child: Text(
               '${artist.genre} • ${artist.location}',
-              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -69,7 +79,10 @@ class ArtistDetailView extends StatelessWidget {
           const SizedBox(height: 12),
 
           // Enlaces a redes sociales (RF-01)
-          const Text('Redes sociales', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const Text(
+            'Redes sociales',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -94,13 +107,21 @@ class ArtistDetailView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: const [
-                    Icon(Icons.bar_chart, color: AppTheme.primaryGreen, size: 18),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.bar_chart,
+                      color: AppTheme.primaryGreen,
+                      size: 18,
+                    ),
                     SizedBox(width: 6),
                     Text(
                       'Panel de Estadísticas (Solo Artista)',
-                      style: TextStyle(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 13),
+                      style: TextStyle(
+                        color: AppTheme.primaryGreen,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -117,7 +138,11 @@ class ArtistDetailView extends StatelessWidget {
           // Canciones más escuchadas (RF-01)
           const Text(
             'Canciones más escuchadas',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           ...artistSongs.map((song) {

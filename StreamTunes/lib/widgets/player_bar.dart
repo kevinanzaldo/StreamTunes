@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
+
 import '../state/player_model.dart';
 import '../theme/app_theme.dart';
 
 class PlayerBar extends StatelessWidget {
   final PlayerModel playerModel;
 
-  const PlayerBar({
-    super.key,
-    required this.playerModel,
-  });
+  const PlayerBar({super.key, required this.playerModel});
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +54,9 @@ class PlayerBar extends StatelessWidget {
               ),
               IconButton(
                 icon: Icon(
-                  playerModel.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                  playerModel.isPlaying
+                      ? Icons.pause_circle_filled
+                      : Icons.play_circle_filled,
                   color: AppTheme.primaryGreen,
                   size: 36,
                 ),

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import '../state/player_model.dart';
+
 import '../state/library_model.dart';
+import '../state/player_model.dart';
 import '../widgets/player_bar.dart';
 import 'home_view.dart';
-import 'upload_view.dart';
 import 'library_view.dart';
+import 'upload_view.dart';
 
 class MainNavigationShell extends StatefulWidget {
   final PlayerModel playerModel;
@@ -26,7 +27,10 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
-      HomeView(playerModel: widget.playerModel, libraryModel: widget.libraryModel),
+      HomeView(
+        playerModel: widget.playerModel,
+        libraryModel: widget.libraryModel,
+      ),
       UploadView(
         onSongUploaded: () {
           setState(() {
@@ -34,17 +38,17 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           });
         },
       ),
-      LibraryView(playerModel: widget.playerModel, libraryModel: widget.libraryModel),
+      LibraryView(
+        playerModel: widget.playerModel,
+        libraryModel: widget.libraryModel,
+      ),
     ];
 
     return Scaffold(
       body: Stack(
         children: [
           // Mantener la pantalla activa sin reconstrucciones raras
-          IndexedStack(
-            index: _currentIndex,
-            children: pages,
-          ),
+          IndexedStack(index: _currentIndex, children: pages),
 
           // Reproductor fijo flotante abajo
           Positioned(
@@ -53,9 +57,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             bottom: 0,
             child: SafeArea(
               top: false,
-              child: PlayerBar(
-                playerModel: widget.playerModel,
-              ),
+              child: PlayerBar(playerModel: widget.playerModel),
             ),
           ),
         ],

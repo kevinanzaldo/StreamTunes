@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'theme/app_theme.dart';
-import 'state/player_model.dart';
+
 import 'state/library_model.dart';
+import 'state/player_model.dart';
+import 'theme/app_theme.dart';
 import 'views/main_navigation_shell.dart';
 
 void main() {

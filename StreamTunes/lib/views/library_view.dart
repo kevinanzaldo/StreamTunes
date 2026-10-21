@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../state/player_model.dart';
+
 import '../state/library_model.dart';
+import '../state/player_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/song_tile.dart';
 
@@ -20,7 +21,10 @@ class LibraryView extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surfaceElevated,
-        title: const Text('Nueva Playlist', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Nueva Playlist',
+          style: TextStyle(color: Colors.white),
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -43,7 +47,9 @@ class LibraryView extends StatelessWidget {
                 Navigator.pop(ctx);
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+            ),
             child: const Text('Crear', style: TextStyle(color: Colors.black)),
           ),
         ],
@@ -75,14 +81,32 @@ class LibraryView extends StatelessWidget {
             itemBuilder: (context, index) {
               final pl = playlists[index];
               return ExpansionTile(
-                leading: const Icon(Icons.queue_music, color: AppTheme.primaryGreen),
-                title: Text(pl.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: Text('${pl.songs.length} temas', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                leading: const Icon(
+                  Icons.queue_music,
+                  color: AppTheme.primaryGreen,
+                ),
+                title: Text(
+                  pl.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: Text(
+                  '${pl.songs.length} temas',
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
                 children: pl.songs.isEmpty
                     ? [
                         const Padding(
                           padding: EdgeInsets.all(12.0),
-                          child: Text('Lista vacía.', style: TextStyle(color: AppTheme.textMuted)),
+                          child: Text(
+                            'Lista vacía.',
+                            style: TextStyle(color: AppTheme.textMuted),
+                          ),
                         ),
                       ]
                     : pl.songs.map((s) {

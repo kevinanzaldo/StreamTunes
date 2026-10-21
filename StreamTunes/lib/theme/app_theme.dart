@@ -7,13 +7,13 @@ class AppTheme {
   static const Color surface = Color(0xFF181818);
   static const Color surfaceElevated = Color(0xFF282828);
   static const Color cardColor = Color(0xFF242424);
-  
+
   // Colores de acento
   static const Color primaryGreen = Color(0xFF1DB954);
   static const Color primaryGreenHover = Color(0xFF1ED760);
   static const Color goldAccent = Color(0xFFFFB800); // Para donaciones y apoyo
   static const Color errorRed = Color(0xFFE91429);
-  
+
   // Textos y grises
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Color(0xFFB3B3B3);
@@ -52,8 +52,14 @@ class AppTheme {
         unselectedItemColor: textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
-        selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-        unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
+        selectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.normal,
+          fontSize: 12,
+        ),
       ),
       cardTheme: CardThemeData(
         color: surface,
@@ -65,7 +71,9 @@ class AppTheme {
           backgroundColor: primaryGreen,
           foregroundColor: Colors.black,
           textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),

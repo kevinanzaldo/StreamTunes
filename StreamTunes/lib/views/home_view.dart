@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../data/mock_data.dart';
 import '../models/song.dart';
-import '../state/player_model.dart';
 import '../state/library_model.dart';
+import '../state/player_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/song_tile.dart';
 import 'artist_detail_view.dart';
@@ -25,7 +26,10 @@ class HomeView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('StreamTunes', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'StreamTunes',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 80),
@@ -35,7 +39,11 @@ class HomeView extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
               'Bandas',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
           SizedBox(
@@ -49,9 +57,16 @@ class HomeView extends StatelessWidget {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: ActionChip(
-                    avatar: Icon(artist.avatarIcon, size: 16, color: AppTheme.primaryGreen),
+                    avatar: Icon(
+                      artist.avatarIcon,
+                      size: 16,
+                      color: AppTheme.primaryGreen,
+                    ),
                     label: Text(artist.name),
-                    labelStyle: const TextStyle(color: Colors.white, fontSize: 12),
+                    labelStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
                     backgroundColor: AppTheme.surfaceElevated,
                     onPressed: () {
                       Navigator.push(
@@ -78,7 +93,11 @@ class HomeView extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Text(
               'Últimos lanzamientos',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
           ...sortedSongs.map((song) {

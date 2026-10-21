@@ -1,21 +1,22 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:changenotifier_ejercicio/main.dart';
-import 'package:changenotifier_ejercicio/state/player_model.dart';
-import 'package:changenotifier_ejercicio/state/library_model.dart';
 import 'package:changenotifier_ejercicio/data/mock_data.dart';
+import 'package:changenotifier_ejercicio/main.dart';
+import 'package:changenotifier_ejercicio/state/library_model.dart';
+import 'package:changenotifier_ejercicio/state/player_model.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('StreamTunesApp smoke test y verificación de navegación principal', (WidgetTester tester) async {
-    // Construir la aplicación StreamTunes y renderizar primer frame
+  testWidgets('StreamTunesApp muestra el inicio y la barra de navegación', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const StreamTunesApp());
     await tester.pumpAndSettle();
 
-    // Verificar que el título de la plataforma y secciones clave estén en pantalla
     expect(find.text('StreamTunes'), findsOneWidget);
-    expect(find.text('Últimos Lanzamientos'), findsOneWidget);
+    expect(find.text('Bandas'), findsOneWidget);
+    expect(find.text('Últimos lanzamientos'), findsOneWidget);
     expect(find.text('Inicio'), findsOneWidget);
-    expect(find.text('Explorar'), findsOneWidget);
-    expect(find.text('Tu Biblioteca'), findsOneWidget);
+    expect(find.text('Subir'), findsOneWidget);
+    expect(find.text('Playlists'), findsOneWidget);
   });
 
   test('PlayerModel playSong y togglePlay actualizan estado reactivo', () {
@@ -25,17 +26,14 @@ void main() {
     expect(player.hasSong, isFalse);
     expect(player.isPlaying, isFalse);
 
-    // Reproducir canción
     player.playSong(song);
     expect(player.hasSong, isTrue);
     expect(player.currentSong?.id, equals(song.id));
     expect(player.isPlaying, isTrue);
 
-    // Pausar
     player.togglePlay();
     expect(player.isPlaying, isFalse);
 
-    // Reanudar
     player.togglePlay();
     expect(player.isPlaying, isTrue);
 
@@ -49,18 +47,15 @@ void main() {
     final initialCount = library.favoriteSongs.length;
     final isFavInitially = library.isFavorite(song);
 
-    // Conmutar favorito
     library.toggleFavorite(song);
     expect(library.isFavorite(song), isNot(isFavInitially));
     expect(library.favoriteSongs.length, isNot(equals(initialCount)));
 
-    // Crear playlist
     final initialPlaylistsCount = library.playlists.length;
     library.createPlaylist('Mi Lista Indie', description: 'Favoritas de rock');
     expect(library.playlists.length, equals(initialPlaylistsCount + 1));
     expect(library.playlists.first.name, equals('Mi Lista Indie'));
 
-    // Agregar canción a la playlist creada
     final createdId = library.playlists.first.id;
     final added = library.addSongToPlaylist(createdId, song);
     expect(added, isTrue);
