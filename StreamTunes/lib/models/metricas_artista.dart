@@ -21,4 +21,3 @@ class MetricasArtista {
     required this.rankingOyentes,
   });
 }
-

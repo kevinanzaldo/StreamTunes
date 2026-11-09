@@ -64,6 +64,7 @@ class HomeView extends StatelessWidget {
                       fontSize: 12,
                     ),
                     backgroundColor: AppTheme.surfaceElevated,
+                    side: const BorderSide(color: Colors.white24, width: 0.8),
                     onPressed: () {
                       Navigator.push(
                         context,

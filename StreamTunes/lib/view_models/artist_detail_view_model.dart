@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/artist.dart';
 import '../models/donation.dart';
@@ -124,10 +124,13 @@ class ArtistDetailViewModel extends ChangeNotifier {
         count: 50000,
       );
 
-      // Ejecución paralela en segundo plano (Criterio D3)
-      final metricasCalculadas = await Isolate.run(
-        () => MusicRepository.calculateAdvancedMetrics(registros),
-      );
+      // En Web (PWA / dart4web), Isolate.run arroja UnsupportedOperation; usamos compute().
+      // En plataformas nativas (Android/iOS/Desktop) Isolate.run ejecuta en hilo secundario aislado (Criterio D3).
+      final metricasCalculadas = kIsWeb
+          ? await compute(MusicRepository.calculateAdvancedMetrics, registros)
+          : await Isolate.run(
+              () => MusicRepository.calculateAdvancedMetrics(registros),
+            );
 
       _metricas = metricasCalculadas;
       _totalMinutosEscuchados = metricasCalculadas.totalMinutos;

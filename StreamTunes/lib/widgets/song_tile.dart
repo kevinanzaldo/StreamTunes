@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../data/mock_data.dart';
 import '../models/song.dart';
 import '../theme/app_theme.dart';
 import '../view_models/library_view_model.dart';
 import '../view_models/reproductor_view_model.dart';
+import '../views/artist_detail_view.dart';
 import 'library_scope.dart';
 import 'reproductor_scope.dart';
 
@@ -57,6 +59,26 @@ class SongTile extends StatelessWidget {
     );
   }
 
+  void _abrirPerfilArtista(
+    BuildContext context,
+    ReproductorViewModel player,
+    LibraryViewModel library,
+  ) {
+    final artist = MockData.getArtistById(song.artistId);
+    if (artist != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ArtistDetailView(
+            artist: artist,
+            playerModel: player,
+            libraryModel: library,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = playerModel ?? ReproductorScope.of(context);
@@ -79,9 +101,15 @@ class SongTile extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          subtitle: Text(
-            song.artistName,
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+          subtitle: InkWell(
+            onTap: () => _abrirPerfilArtista(context, player, library),
+            child: Text(
+              song.artistName,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+              ),
+            ),
           ),
           trailing: IconButton(
             icon: const Icon(Icons.playlist_add, color: Colors.white60),

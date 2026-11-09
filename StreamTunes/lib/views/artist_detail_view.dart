@@ -275,7 +275,8 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: _viewModel.historias.length,
-                  separatorBuilder: (context, index) => const SizedBox(width: 8),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 8),
                   itemBuilder: (context, i) {
                     return Chip(
                       avatar: const Icon(
@@ -322,13 +323,17 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Fondo de apoyo a la banda',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                        const Expanded(
+                          child: Text(
+                            'Fondo de apoyo a la banda',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           '\$${widget.artist.donationsCollected.toStringAsFixed(0)} / \$${widget.artist.donationGoal.toStringAsFixed(0)}',
                           style: const TextStyle(
@@ -486,13 +491,17 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  '• ${oyente.nombre} (${oyente.ubicacion})',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
+                                Expanded(
+                                  child: Text(
+                                    '• ${oyente.nombre} (${oyente.ubicacion})',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Text(
                                   '${oyente.minutos} min',
                                   style: const TextStyle(
