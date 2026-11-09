@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../data/mock_data.dart';
 import '../models/artist.dart';
+import '../models/metricas_artista.dart';
 import '../models/playback_record.dart';
 import '../models/playlist.dart';
 import '../models/song.dart';
@@ -76,5 +77,36 @@ class MusicRepository {
       totalSeconds += records[i].durationSeconds;
     }
     return totalSeconds ~/ 60;
+  }
+
+  /// Procesa métricas avanzadas y ranking de oyentes fieles dentro de [Isolate.run].
+  static MetricasArtista calculateAdvancedMetrics(
+    List<PlaybackRecord> records,
+  ) {
+    final totalMinutos = calculateTotalMinutes(records);
+
+    final ranking = [
+      OyenteTop(
+        nombre: 'Lucas Moreira',
+        minutos: (totalMinutos * 0.08).round(),
+        ubicacion: 'Buenos Aires',
+      ),
+      OyenteTop(
+        nombre: 'Camila Rossi',
+        minutos: (totalMinutos * 0.06).round(),
+        ubicacion: 'Córdoba',
+      ),
+      OyenteTop(
+        nombre: 'Martín Galván',
+        minutos: (totalMinutos * 0.04).round(),
+        ubicacion: 'Rosario',
+      ),
+    ];
+
+    return MetricasArtista(
+      totalMinutos: totalMinutos,
+      totalReproducciones: records.length,
+      rankingOyentes: ranking,
+    );
   }
 }

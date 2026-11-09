@@ -61,6 +61,87 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
     super.dispose();
   }
 
+  void _mostrarDialogoDonar() {
+    final controller = TextEditingController(text: '¡Gran música, sigan así!');
+    double montoSeleccionado = 1000.0;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: AppTheme.surfaceElevated,
+            title: Text(
+              'Apoyar a ${widget.artist.name}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Elige un monto (ARS):',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [500.0, 1000.0, 2500.0, 5000.0].map((m) {
+                    final isSelected = montoSeleccionado == m;
+                    return ChoiceChip(
+                      label: Text('\$${m.toInt()}'),
+                      selected: isSelected,
+                      selectedColor: AppTheme.primaryGreen,
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.black : Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      onSelected: (_) {
+                        setDialogState(() {
+                          montoSeleccionado = m;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Mensaje para la banda',
+                    labelStyle: TextStyle(color: AppTheme.textMuted),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.favorite, size: 16),
+                label: const Text('Donar en vivo'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.black,
+                ),
+                onPressed: () {
+                  _viewModel.donarSimulado(
+                    monto: montoSeleccionado,
+                    mensaje: controller.text.trim(),
+                  );
+                  Navigator.pop(ctx);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final artistSongs = MockData.getSongsByArtist(widget.artist.id)
@@ -165,6 +246,55 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
               ),
               const SizedBox(height: 14),
 
+              // Historias de ensayos y recitales (Bloque 1)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Historias de la banda (15s)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (_viewModel.tieneCamara)
+                    TextButton.icon(
+                      icon: const Icon(Icons.videocam, size: 16),
+                      label: const Text('Grabar'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.primaryGreen,
+                      ),
+                      onPressed: _viewModel.grabarHistoria,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _viewModel.historias.length,
+                  separatorBuilder: (context, index) => const SizedBox(width: 8),
+                  itemBuilder: (context, i) {
+                    return Chip(
+                      avatar: const Icon(
+                        Icons.play_circle_fill,
+                        color: AppTheme.primaryGreen,
+                        size: 16,
+                      ),
+                      label: Text(_viewModel.historias[i]),
+                      labelStyle: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white,
+                      ),
+                      backgroundColor: AppTheme.surfaceElevated,
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 14),
+
               // Biografía
               Container(
                 padding: const EdgeInsets.all(12),
@@ -179,7 +309,7 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
               ),
               const SizedBox(height: 12),
 
-              // Progreso de donaciones
+              // Progreso de donaciones y botón donar en vivo (Bloque 5)
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -216,6 +346,22 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                         AppTheme.primaryGreen,
                       ),
                       minHeight: 6,
+                    ),
+                    const SizedBox(height: 10),
+                    Center(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.favorite, size: 16),
+                        label: const Text('Enviar donación en vivo (Stream)'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryGreen,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        onPressed: _mostrarDialogoDonar,
+                      ),
                     ),
                   ],
                 ),
@@ -306,7 +452,7 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                           ),
                         ],
                       )
-                    else if (_viewModel.totalMinutosEscuchados != null)
+                    else if (_viewModel.totalMinutosEscuchados != null) ...[
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -314,15 +460,53 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '⏱ Total: ${_viewModel.totalMinutosEscuchados} minutos calculados sin trabar la música',
+                          '⏱ Total: ${_viewModel.totalMinutosEscuchados} minutos calculados en paralelo sin trabar la música',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
                           ),
                         ),
-                      )
-                    else
+                      ),
+                      if (_viewModel.metricas != null &&
+                          _viewModel.metricas!.rankingOyentes.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        const Text(
+                          '🏆 Ranking de Top Oyentes del Mes (Isolate):',
+                          style: TextStyle(
+                            color: AppTheme.primaryGreen,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        ..._viewModel.metricas!.rankingOyentes.map(
+                          (oyente) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '• ${oyente.nombre} (${oyente.ubicacion})',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  '${oyente.minutos} min',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ] else
                       ElevatedButton.icon(
                         onPressed: _viewModel.calcularEstadisticasIsolate,
                         icon: const Icon(Icons.calculate, size: 18),
