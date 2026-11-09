@@ -5,6 +5,9 @@ import '../models/playlist.dart';
 import '../models/song.dart';
 
 class MockData {
+  /// Artista simulado que ha iniciado sesión (dueño de su perfil y de las subidas).
+  static const String artistaLogueadoId = 'artist_1';
+
   // Artistas Independientes
   static final List<Artist> artists = [
     Artist(

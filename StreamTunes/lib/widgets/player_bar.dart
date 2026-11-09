@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
-import '../view_models/reproductor_view_model.dart';
 import 'now_playing_modal.dart';
 import 'reproductor_scope.dart';
 
 class PlayerBar extends StatelessWidget {
-  final ReproductorViewModel? playerModel;
-
-  const PlayerBar({super.key, this.playerModel});
+  const PlayerBar({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final reproductor = playerModel ?? ReproductorScope.of(context);
+    final reproductor = ReproductorScope.of(context);
 
     return ListenableBuilder(
       listenable: reproductor,

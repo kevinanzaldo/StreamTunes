@@ -1,4 +1,7 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -8,8 +11,14 @@ const String backgroundUploadTaskKey = 'streamtunes_background_album_upload';
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
+    WidgetsFlutterBinding.ensureInitialized();
+    DartPluginRegistrant.ensureInitialized();
+
     if (task == backgroundUploadTaskKey ||
         task == Workmanager.iOSBackgroundTask) {
+      // Inicializar el plugin de notificaciones dentro de este isolate independiente (Criterio E2)
+      await BackgroundUploadService.inicializarEnIsolate();
+
       // Simular espera de 5 segundos de subida pesada en segundo plano (Bloque 6)
       await Future.delayed(const Duration(seconds: 5));
 
@@ -30,6 +39,26 @@ class BackgroundUploadService {
       FlutterLocalNotificationsPlugin();
 
   static bool _initialized = false;
+
+  /// Inicialización para el isolate secundario de Workmanager.
+  static Future<void> inicializarEnIsolate() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const DarwinInitializationSettings initializationSettingsDarwin =
+        DarwinInitializationSettings();
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+          macOS: initializationSettingsDarwin,
+        );
+
+    try {
+      await _notificationsPlugin.initialize(settings: initializationSettings);
+    } catch (e) {
+      debugPrint('Isolate Notifications init: $e');
+    }
+  }
 
   static Future<void> inicializar() async {
     if (_initialized) return;
@@ -59,6 +88,17 @@ class BackgroundUploadService {
       await _notificationsPlugin.initialize(settings: initializationSettings);
     } catch (e) {
       debugPrint('Notifications init: $e');
+    }
+
+    // Android 13+ exige pedir el permiso de notificaciones en tiempo de ejecución
+    try {
+      await _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.requestNotificationsPermission();
+    } catch (e) {
+      debugPrint('Permiso de notificaciones: $e');
     }
 
     _initialized = true;

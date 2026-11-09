@@ -86,6 +86,26 @@ class UploadViewModel extends ChangeNotifier {
       return false;
     }
 
+    // Validación de límites del MVP: máximo 20 temas o 2 álbumes por banda (Criterio A1)
+    final existingSongs = _musicRepository.getSongsByArtist(artistId);
+    if (existingSongs.length >= 20) {
+      _error = 'Límite de subida alcanzado: máximo 20 temas por banda.';
+      notifyListeners();
+      return false;
+    }
+
+    final existingAlbums = existingSongs
+        .map((s) => s.album.trim().toLowerCase())
+        .where((alb) => alb.isNotEmpty)
+        .toSet();
+
+    final targetAlbum = album.trim().toLowerCase();
+    if (!existingAlbums.contains(targetAlbum) && existingAlbums.length >= 2) {
+      _error = 'Límite de subida alcanzado: máximo 2 álbumes por banda.';
+      notifyListeners();
+      return false;
+    }
+
     _subiendo = true;
     _error = null;
     notifyListeners();

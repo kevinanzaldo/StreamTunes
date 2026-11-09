@@ -1,4 +1,4 @@
-package com.example.changenotifier_ejercicio
+package com.streamtunes.app
 
 import io.flutter.embedding.android.FlutterActivity
 

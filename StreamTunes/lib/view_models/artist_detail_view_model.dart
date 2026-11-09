@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 
@@ -38,6 +37,7 @@ class ArtistDetailViewModel extends ChangeNotifier {
     DonacionesService? donacionesService,
     DispositivoCapacidades? dispositivoCapacidades,
     bool autoEscucharDonaciones = true,
+    bool autoIniciarSimulacion = false,
   }) : _musicRepository = musicRepository ?? MusicRepository(),
        _donacionesService = donacionesService ?? DonacionesService(),
        _dispositivoCapacidades =
@@ -45,6 +45,9 @@ class ArtistDetailViewModel extends ChangeNotifier {
     _verificarCamara();
     if (autoEscucharDonaciones) {
       _iniciarEscuchaDonaciones();
+    }
+    if (autoIniciarSimulacion) {
+      iniciarSimulacionDonaciones();
     }
   }
 
@@ -112,7 +115,22 @@ class ArtistDetailViewModel extends ChangeNotifier {
     }
   }
 
-  /// Procesa 50.000 registros usando Isolate.run para calcular minutos y top oyentes.
+  /// Inicia la simulación de donaciones periódicas en tiempo real asociadas a este artista.
+  void iniciarSimulacionDonaciones({
+    Duration interval = const Duration(seconds: 10),
+  }) {
+    _donacionesService.iniciarSimulacion(
+      interval: interval,
+      targetArtistId: artist.id,
+    );
+  }
+
+  /// Detiene la simulación activa de donaciones.
+  void detenerSimulacionDonaciones() {
+    _donacionesService.detenerSimulacion();
+  }
+
+  /// Procesa 50.000 registros en segundo plano delegando la plataforma al servicio de capacidades (Criterio D3).
   Future<void> calcularEstadisticasIsolate() async {
     _calculandoEstadisticas = true;
     _errorEstadisticas = null;
@@ -124,13 +142,12 @@ class ArtistDetailViewModel extends ChangeNotifier {
         count: 50000,
       );
 
-      // En Web (PWA / dart4web), Isolate.run arroja UnsupportedOperation; usamos compute().
-      // En plataformas nativas (Android/iOS/Desktop) Isolate.run ejecuta en hilo secundario aislado (Criterio D3).
-      final metricasCalculadas = kIsWeb
-          ? await compute(MusicRepository.calculateAdvancedMetrics, registros)
-          : await Isolate.run(
-              () => MusicRepository.calculateAdvancedMetrics(registros),
-            );
+      // Desacoplamiento de plataforma: DispositivoCapacidades resuelve Isolate.run o compute (Regla 3)
+      final metricasCalculadas = await _dispositivoCapacidades
+          .ejecutarComputoPesado(
+            MusicRepository.calculateAdvancedMetrics,
+            registros,
+          );
 
       _metricas = metricasCalculadas;
       _totalMinutosEscuchados = metricasCalculadas.totalMinutos;
@@ -144,6 +161,7 @@ class ArtistDetailViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    detenerSimulacionDonaciones();
     _donacionesSubscription?.cancel();
     _donacionesSubscription = null;
     super.dispose();

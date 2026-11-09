@@ -70,10 +70,7 @@ class _StreamTunesAppState extends State<StreamTunesApp>
           title: 'StreamTunes MVP',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.darkTheme,
-          home: MainNavigationShell(
-            playerModel: _reproductorViewModel,
-            libraryModel: _libraryViewModel,
-          ),
+          home: const MainNavigationShell(),
         ),
       ),
     );

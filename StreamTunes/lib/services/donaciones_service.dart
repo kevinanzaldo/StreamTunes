@@ -49,7 +49,7 @@ class DonacionesService {
           ? MockData.getArtistById(targetArtistId) ?? MockData.artists.first
           : MockData.artists[random.nextInt(MockData.artists.length)];
 
-      final amounts = [500.0, 1000.0, 2000.0, 5000.0, 10000.0];
+      final amounts = [500.0, 1000.0, 2000.0, 5000.0];
       final amount = amounts[random.nextInt(amounts.length)];
       final message = sampleMessages[random.nextInt(sampleMessages.length)];
 

@@ -4,22 +4,14 @@ import '../data/mock_data.dart';
 import '../models/song.dart';
 import '../theme/app_theme.dart';
 import '../view_models/library_view_model.dart';
-import '../view_models/reproductor_view_model.dart';
 import '../views/artist_detail_view.dart';
 import 'library_scope.dart';
 import 'reproductor_scope.dart';
 
 class SongTile extends StatelessWidget {
   final Song song;
-  final ReproductorViewModel? playerModel;
-  final LibraryViewModel? libraryModel;
 
-  const SongTile({
-    super.key,
-    required this.song,
-    this.playerModel,
-    this.libraryModel,
-  });
+  const SongTile({super.key, required this.song});
 
   void _showAddDialog(BuildContext context, LibraryViewModel lib) {
     showDialog(
@@ -59,30 +51,20 @@ class SongTile extends StatelessWidget {
     );
   }
 
-  void _abrirPerfilArtista(
-    BuildContext context,
-    ReproductorViewModel player,
-    LibraryViewModel library,
-  ) {
+  void _abrirPerfilArtista(BuildContext context) {
     final artist = MockData.getArtistById(song.artistId);
     if (artist != null) {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => ArtistDetailView(
-            artist: artist,
-            playerModel: player,
-            libraryModel: library,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => ArtistDetailView(artist: artist)),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final player = playerModel ?? ReproductorScope.of(context);
-    final library = libraryModel ?? LibraryScope.of(context);
+    final player = ReproductorScope.of(context);
+    final library = LibraryScope.of(context);
 
     return ListenableBuilder(
       listenable: player,
@@ -102,7 +84,7 @@ class SongTile extends StatelessWidget {
             ),
           ),
           subtitle: InkWell(
-            onTap: () => _abrirPerfilArtista(context, player, library),
+            onTap: () => _abrirPerfilArtista(context),
             child: Text(
               song.artistName,
               style: const TextStyle(

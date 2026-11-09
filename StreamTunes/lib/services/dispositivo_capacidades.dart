@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -76,6 +78,19 @@ class DispositivoCapacidades {
     } catch (e) {
       debugPrint('Error al grabar historia con cámara: $e');
       return null;
+    }
+  }
+
+  /// Ejecuta cálculos pesados en un hilo secundario sin congelar la UI (Criterios D3, Multiplataforma).
+  /// Encapsula Isolate.run en plataformas nativas y compute en Web.
+  Future<R> ejecutarComputoPesado<T, R>(
+    ComputeCallback<T, R> callback,
+    T message,
+  ) async {
+    if (kIsWeb) {
+      return compute(callback, message);
+    } else {
+      return Isolate.run(() => callback(message));
     }
   }
 }

@@ -1,19 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../view_models/library_view_model.dart';
-import '../view_models/reproductor_view_model.dart';
 import '../widgets/player_bar.dart';
 import 'home_view.dart';
 import 'library_view.dart';
 import 'upload_view.dart';
 
 class MainNavigationShell extends StatefulWidget {
-  final ReproductorViewModel? playerModel;
-  final LibraryViewModel? libraryModel;
-
   static const double breakpointWidth = 600.0;
 
-  const MainNavigationShell({super.key, this.playerModel, this.libraryModel});
+  const MainNavigationShell({super.key});
 
   @override
   State<MainNavigationShell> createState() => _MainNavigationShellState();
@@ -36,10 +31,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     final isCompact = screenWidth < MainNavigationShell.breakpointWidth;
 
     final List<Widget> pages = [
-      HomeView(
-        playerModel: widget.playerModel,
-        libraryModel: widget.libraryModel,
-      ),
+      const HomeView(),
       UploadView(
         onSongUploaded: () {
           setState(() {
@@ -47,10 +39,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           });
         },
       ),
-      LibraryView(
-        playerModel: widget.playerModel,
-        libraryModel: widget.libraryModel,
-      ),
+      const LibraryView(),
     ];
 
     if (isCompact) {
@@ -59,14 +48,11 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         body: Stack(
           children: [
             IndexedStack(index: _currentIndex, children: pages),
-            Positioned(
+            const Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: SafeArea(
-                top: false,
-                child: PlayerBar(playerModel: widget.playerModel),
-              ),
+              child: SafeArea(top: false, child: PlayerBar()),
             ),
           ],
         ),
@@ -133,14 +119,11 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             child: Stack(
               children: [
                 IndexedStack(index: _currentIndex, children: pages),
-                Positioned(
+                const Positioned(
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: SafeArea(
-                    top: false,
-                    child: PlayerBar(playerModel: widget.playerModel),
-                  ),
+                  child: SafeArea(top: false, child: PlayerBar()),
                 ),
               ],
             ),

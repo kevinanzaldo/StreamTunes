@@ -108,10 +108,8 @@ class NowPlayingModal extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => ArtistDetailView(
-                                    artist: artist,
-                                    playerModel: reproductor,
-                                  ),
+                                  builder: (_) =>
+                                      ArtistDetailView(artist: artist),
                                 ),
                               );
                             }

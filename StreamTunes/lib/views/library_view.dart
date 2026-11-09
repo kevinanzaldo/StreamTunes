@@ -2,15 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../view_models/library_view_model.dart';
-import '../view_models/reproductor_view_model.dart';
 import '../widgets/library_scope.dart';
 import '../widgets/song_tile.dart';
 
 class LibraryView extends StatelessWidget {
-  final ReproductorViewModel? playerModel;
-  final LibraryViewModel? libraryModel;
-
-  const LibraryView({super.key, this.playerModel, this.libraryModel});
+  const LibraryView({super.key});
 
   void _showNewPlaylistDialog(BuildContext context, LibraryViewModel lib) {
     final controller = TextEditingController();
@@ -56,7 +52,7 @@ class LibraryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lib = libraryModel ?? LibraryScope.of(context);
+    final lib = LibraryScope.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -109,11 +105,7 @@ class LibraryView extends StatelessWidget {
                         ),
                       ]
                     : pl.songs.map((s) {
-                        return SongTile(
-                          song: s,
-                          playerModel: playerModel,
-                          libraryModel: lib,
-                        );
+                        return SongTile(song: s);
                       }).toList(),
               );
             },

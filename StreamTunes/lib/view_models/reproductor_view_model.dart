@@ -17,28 +17,14 @@ class ReproductorViewModel extends ChangeNotifier {
 
   Timer? _playbackTimer;
 
-  // Getters públicos
-  Song? get cancionActual => _cancionActual;
+  // Getters públicos normalizados (Criterio C2)
   Song? get currentSong => _cancionActual;
-
-  bool get reproduciendo => _reproduciendo;
   bool get isPlaying => _reproduciendo;
-
   bool get hasSong => _cancionActual != null;
-
-  Duration get posicionActual => _posicionActual;
   Duration get currentPosition => _posicionActual;
-
-  Duration get duracionTotal => _duracionTotal;
   Duration get totalDuration => _duracionTotal;
-
-  List<Song> get cola => List.unmodifiable(_cola);
-  List<Song> get queue => _cola;
-
-  bool get aleatorio => _aleatorio;
+  List<Song> get queue => List.unmodifiable(_cola);
   bool get isShuffle => _aleatorio;
-
-  bool get repetir => _repetir;
   bool get isRepeat => _repetir;
 
   String get songTitle =>
@@ -95,10 +81,6 @@ class ReproductorViewModel extends ChangeNotifier {
 
     _startTimer();
     notifyListeners();
-  }
-
-  void playSong(Song song, {List<Song>? queue}) {
-    play(song, cola: queue);
   }
 
   void pause() {

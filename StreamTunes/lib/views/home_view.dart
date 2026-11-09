@@ -3,16 +3,11 @@ import 'package:flutter/material.dart';
 import '../data/mock_data.dart';
 import '../models/song.dart';
 import '../theme/app_theme.dart';
-import '../view_models/library_view_model.dart';
-import '../view_models/reproductor_view_model.dart';
 import '../widgets/song_tile.dart';
 import 'artist_detail_view.dart';
 
 class HomeView extends StatelessWidget {
-  final ReproductorViewModel? playerModel;
-  final LibraryViewModel? libraryModel;
-
-  const HomeView({super.key, this.playerModel, this.libraryModel});
+  const HomeView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -69,11 +64,7 @@ class HomeView extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => ArtistDetailView(
-                            artist: artist,
-                            playerModel: playerModel,
-                            libraryModel: libraryModel,
-                          ),
+                          builder: (_) => ArtistDetailView(artist: artist),
                         ),
                       );
                     },
@@ -98,11 +89,7 @@ class HomeView extends StatelessWidget {
             ),
           ),
           ...sortedSongs.map((song) {
-            return SongTile(
-              song: song,
-              playerModel: playerModel,
-              libraryModel: libraryModel,
-            );
+            return SongTile(song: song);
           }),
         ],
       ),

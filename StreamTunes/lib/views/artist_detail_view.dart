@@ -4,23 +4,21 @@ import '../data/mock_data.dart';
 import '../models/artist.dart';
 import '../theme/app_theme.dart';
 import '../view_models/artist_detail_view_model.dart';
-import '../view_models/library_view_model.dart';
-import '../view_models/reproductor_view_model.dart';
 import '../widgets/player_bar.dart';
 import '../widgets/song_tile.dart';
 
 class ArtistDetailView extends StatefulWidget {
   final Artist artist;
-  final ReproductorViewModel? playerModel;
-  final LibraryViewModel? libraryModel;
   final ArtistDetailViewModel? viewModel;
+
+  /// Si es null, se considera dueño solo al artista logueado (simulado).
+  final bool? esDuenoDelPerfil;
 
   const ArtistDetailView({
     super.key,
     required this.artist,
-    this.playerModel,
-    this.libraryModel,
     this.viewModel,
+    this.esDuenoDelPerfil,
   });
 
   @override
@@ -37,7 +35,10 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
     if (widget.viewModel != null) {
       _viewModel = widget.viewModel!;
     } else {
-      _viewModel = ArtistDetailViewModel(artist: widget.artist);
+      _viewModel = ArtistDetailViewModel(
+        artist: widget.artist,
+        autoIniciarSimulacion: true,
+      );
       _ownsViewModel = true;
     }
   }
@@ -62,6 +63,9 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
     super.dispose();
   }
 
+  bool get _esDuenoDelPerfil =>
+      widget.esDuenoDelPerfil ?? widget.artist.id == MockData.artistaLogueadoId;
+
   void _mostrarDialogoDonar() {
     final controller = TextEditingController(text: '¡Gran música, sigan así!');
     double montoSeleccionado = 1000.0;
@@ -80,6 +84,37 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Banner informativo de topes de gasto activos (Feedback Kiwi)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: Colors.amberAccent.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.amberAccent,
+                        size: 16,
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Estamos con alta demanda - Topes de gasto activos (máx. \$5.000 ARS por donación)',
+                          style: TextStyle(
+                            color: Colors.amberAccent,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const Text(
                   'Elige un monto (ARS):',
                   style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
@@ -149,7 +184,26 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
       ..sort((a, b) => b.playCount.compareTo(a.playCount));
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.artist.name)),
+      appBar: AppBar(
+        title: Text(widget.artist.name),
+        actions: [
+          // Botón de moderación de contenido (Feedback Kiwi)
+          IconButton(
+            icon: const Icon(Icons.flag_outlined),
+            tooltip: 'Reportar perfil',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Perfil reportado para moderación de contenido.',
+                  ),
+                  backgroundColor: AppTheme.surfaceElevated,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           ListenableBuilder(
@@ -297,7 +351,22 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                       },
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
+
+                  // Criterio A1: Canciones más escuchadas MOVIDAS ARRIBA para priorizar música
+                  const Text(
+                    'Canciones más escuchadas',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  ...artistSongs.map((song) {
+                    return SongTile(song: song);
+                  }),
+                  const SizedBox(height: 16),
 
                   // Biografía
                   Container(
@@ -316,7 +385,7 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Progreso de donaciones y botón donar en vivo (Bloque 5)
+                  // Progreso de donaciones y botón donar en vivo (Bloque 5 + Feedback Kiwi)
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -326,6 +395,38 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Banner visual de topes de gasto activos
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: Colors.amberAccent.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: Colors.amberAccent,
+                                size: 16,
+                              ),
+                              SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Estamos con alta demanda - Topes de gasto activos (máx. \$5.000 ARS por donación)',
+                                  style: TextStyle(
+                                    color: Colors.amberAccent,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -405,193 +506,174 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Panel de Estadísticas con Isolate.run (Bloque 4)
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white10,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.insights,
-                              color: AppTheme.primaryGreen,
-                              size: 20,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Métricas en Segundo Plano (Isolate)',
-                              style: TextStyle(
-                                color: AppTheme.primaryGreen,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Ayer te escucharon: ${widget.artist.yesterdayPlays} veces.',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        if (_viewModel.calculandoEstadisticas)
+                  // Panel de Estadísticas con Isolate.run (Bloque 4 - Solo visible para el dueño del perfil)
+                  if (_esDuenoDelPerfil) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           const Row(
                             children: [
-                              SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppTheme.primaryGreen,
-                                  ),
+                              Icon(
+                                Icons.insights,
+                                color: AppTheme.primaryGreen,
+                                size: 20,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Métricas en Segundo Plano (Isolate)',
+                                style: TextStyle(
+                                  color: AppTheme.primaryGreen,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
                               ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Calculando 50.000 reproducciones en Isolate...',
-                                  style: TextStyle(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 12,
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Ayer te escucharon: ${widget.artist.yesterdayPlays} veces.',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          if (_viewModel.calculandoEstadisticas)
+                            const Row(
+                              children: [
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppTheme.primaryGreen,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Calculando 50.000 reproducciones en Isolate...',
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          else if (_viewModel.totalMinutosEscuchados !=
+                              null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.surfaceElevated,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '⏱ Total: ${_viewModel.totalMinutosEscuchados} minutos calculados en paralelo sin trabar la música',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            if (_viewModel.metricas != null &&
+                                _viewModel
+                                    .metricas!
+                                    .rankingOyentes
+                                    .isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              const Text(
+                                '🏆 Ranking de Top Oyentes del Mes (Isolate):',
+                                style: TextStyle(
+                                  color: AppTheme.primaryGreen,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              ..._viewModel.metricas!.rankingOyentes.map(
+                                (oyente) => Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 2.0,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '• ${oyente.nombre} (${oyente.ubicacion})',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '${oyente.minutos} min',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ],
-                          )
-                        else if (_viewModel.totalMinutosEscuchados != null) ...[
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppTheme.surfaceElevated,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '⏱ Total: ${_viewModel.totalMinutosEscuchados} minutos calculados en paralelo sin trabar la música',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                          ] else
+                            ElevatedButton.icon(
+                              onPressed: _viewModel.calcularEstadisticasIsolate,
+                              icon: const Icon(Icons.calculate, size: 18),
+                              label: const Text(
+                                'Calcular minutos totales (50k registros)',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.surfaceElevated,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                               ),
                             ),
-                          ),
-                          if (_viewModel.metricas != null &&
-                              _viewModel
-                                  .metricas!
-                                  .rankingOyentes
-                                  .isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            const Text(
-                              '🏆 Ranking de Top Oyentes del Mes (Isolate):',
-                              style: TextStyle(
-                                color: AppTheme.primaryGreen,
-                                fontWeight: FontWeight.bold,
+                          if (_viewModel.errorEstadisticas != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              _viewModel.errorEstadisticas!,
+                              style: const TextStyle(
+                                color: Colors.redAccent,
                                 fontSize: 12,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            ..._viewModel.metricas!.rankingOyentes.map(
-                              (oyente) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 2.0,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        '• ${oyente.nombre} (${oyente.ubicacion})',
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 12,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${oyente.minutos} min',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
                           ],
-                        ] else
-                          ElevatedButton.icon(
-                            onPressed: _viewModel.calcularEstadisticasIsolate,
-                            icon: const Icon(Icons.calculate, size: 18),
-                            label: const Text(
-                              'Calcular minutos totales (50k registros)',
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.surfaceElevated,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                            ),
-                          ),
-                        if (_viewModel.errorEstadisticas != null) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            _viewModel.errorEstadisticas!,
-                            style: const TextStyle(
-                              color: Colors.redAccent,
-                              fontSize: 12,
-                            ),
-                          ),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Canciones más escuchadas
-                  const Text(
-                    'Canciones más escuchadas',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  ...artistSongs.map((song) {
-                    return SongTile(
-                      song: song,
-                      playerModel: widget.playerModel,
-                      libraryModel: widget.libraryModel,
-                    );
-                  }),
+                  ],
                 ],
               );
             },
           ),
-          Positioned(
+          const Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: SafeArea(
-              top: false,
-              child: PlayerBar(playerModel: widget.playerModel),
-            ),
+            child: SafeArea(top: false, child: PlayerBar()),
           ),
         ],
       ),

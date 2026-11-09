@@ -1,18 +1,20 @@
-import 'package:changenotifier_ejercicio/data/mock_data.dart';
-import 'package:changenotifier_ejercicio/main.dart';
-import 'package:changenotifier_ejercicio/models/donation.dart';
-import 'package:changenotifier_ejercicio/services/dispositivo_capacidades.dart';
-import 'package:changenotifier_ejercicio/services/donaciones_service.dart';
-import 'package:changenotifier_ejercicio/view_models/artist_detail_view_model.dart';
-import 'package:changenotifier_ejercicio/view_models/library_view_model.dart';
-import 'package:changenotifier_ejercicio/view_models/reproductor_view_model.dart';
-import 'package:changenotifier_ejercicio/view_models/upload_view_model.dart';
-import 'package:changenotifier_ejercicio/views/main_navigation_shell.dart';
-import 'package:changenotifier_ejercicio/views/upload_view.dart';
-import 'package:changenotifier_ejercicio/widgets/library_scope.dart';
-import 'package:changenotifier_ejercicio/widgets/reproductor_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:streamtunes/data/mock_data.dart';
+import 'package:streamtunes/main.dart';
+import 'package:streamtunes/models/artist.dart';
+import 'package:streamtunes/models/donation.dart';
+import 'package:streamtunes/services/dispositivo_capacidades.dart';
+import 'package:streamtunes/services/donaciones_service.dart';
+import 'package:streamtunes/view_models/artist_detail_view_model.dart';
+import 'package:streamtunes/view_models/library_view_model.dart';
+import 'package:streamtunes/view_models/reproductor_view_model.dart';
+import 'package:streamtunes/view_models/upload_view_model.dart';
+import 'package:streamtunes/views/artist_detail_view.dart';
+import 'package:streamtunes/views/main_navigation_shell.dart';
+import 'package:streamtunes/views/upload_view.dart';
+import 'package:streamtunes/widgets/library_scope.dart';
+import 'package:streamtunes/widgets/reproductor_scope.dart';
 
 void main() {
   testWidgets('StreamTunesApp muestra el inicio y la navegación', (
@@ -275,4 +277,90 @@ void main() {
       expect(player.isPlaying, isFalse);
     },
   );
+
+  test('Límites de subida: máximo 2 álbumes y 20 temas por banda', () async {
+    const bandaId = 'artist_test_limite';
+    addTearDown(() => MockData.songs.removeWhere((s) => s.artistId == bandaId));
+    final vm = UploadViewModel(autoInicializar: false);
+
+    Future<bool> subir(String titulo, String album) => vm.publicarTema(
+      titulo: titulo,
+      album: album,
+      artistId: bandaId,
+      artistName: 'Banda Test',
+      subirEnSegundoPlano: false,
+    );
+
+    expect(await subir('Tema A', 'Álbum A'), isTrue);
+    expect(await subir('Tema B', 'Álbum B'), isTrue);
+
+    // Un tercer álbum distinto debe ser rechazado
+    expect(await subir('Tema C', 'Álbum C'), isFalse);
+    expect(vm.error, contains('2 álbumes'));
+
+    // Un tema en un álbum ya existente sí se permite
+    expect(await subir('Tema A2', 'Álbum A'), isTrue);
+
+    // Completar el cupo de 20 temas (ya hay 3)
+    for (var i = 4; i <= 20; i++) {
+      expect(await subir('Tema $i', 'Álbum A'), isTrue);
+    }
+    expect(await subir('Tema 21', 'Álbum A'), isFalse);
+    expect(vm.error, contains('20 temas'));
+
+    vm.dispose();
+  });
+
+  testWidgets('Estadísticas privadas: solo las ve el dueño del perfil', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 4000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final player = ReproductorViewModel();
+    final library = LibraryViewModel();
+    addTearDown(player.dispose);
+    addTearDown(library.dispose);
+
+    Future<void> mostrarPerfil(Artist artist, {bool? esDueno}) async {
+      final vm = ArtistDetailViewModel(
+        artist: artist,
+        autoEscucharDonaciones: false,
+      );
+      addTearDown(vm.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReproductorScope(
+            reproductor: player,
+            child: LibraryScope(
+              library: library,
+              child: ArtistDetailView(
+                key: ValueKey('${artist.id}_$esDueno'),
+                artist: artist,
+                viewModel: vm,
+                esDuenoDelPerfil: esDueno,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    const panelEstadisticas = 'Métricas en Segundo Plano (Isolate)';
+
+    // Artista logueado (simulado): ve sus estadísticas
+    await mostrarPerfil(MockData.artists[0]);
+    expect(find.text(panelEstadisticas), findsOneWidget);
+
+    // Perfil de otra banda: las estadísticas quedan ocultas
+    await mostrarPerfil(MockData.artists[1]);
+    expect(find.text(panelEstadisticas), findsNothing);
+
+    // El flag explícito tiene prioridad
+    await mostrarPerfil(MockData.artists[1], esDueno: true);
+    expect(find.text(panelEstadisticas), findsOneWidget);
+  });
 }
