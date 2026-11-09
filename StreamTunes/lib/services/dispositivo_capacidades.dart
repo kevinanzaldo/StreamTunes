@@ -64,4 +64,18 @@ class DispositivoCapacidades {
       return null;
     }
   }
+
+  /// Permite a las bandas grabar historias o videos cortos (15 segundos) desde recitales o ensayos (Bloque 1).
+  Future<String?> grabarHistoriaCorta() async {
+    try {
+      final XFile? file = await _picker.pickVideo(
+        source: ImageSource.camera,
+        maxDuration: const Duration(seconds: 15),
+      );
+      return file?.name ?? file?.path;
+    } catch (e) {
+      debugPrint('Error al grabar historia con cámara: $e');
+      return null;
+    }
+  }
 }
