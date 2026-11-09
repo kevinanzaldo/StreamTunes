@@ -1,29 +1,47 @@
 import 'package:flutter/material.dart';
 
-import '../state/player_model.dart';
 import '../theme/app_theme.dart';
+import '../view_models/reproductor_view_model.dart';
+import 'reproductor_scope.dart';
 
 class PlayerBar extends StatelessWidget {
-  final PlayerModel playerModel;
+  final ReproductorViewModel? playerModel;
 
-  const PlayerBar({super.key, required this.playerModel});
+  const PlayerBar({super.key, this.playerModel});
 
   @override
   Widget build(BuildContext context) {
+    final reproductor = playerModel ?? ReproductorScope.of(context);
+
     return ListenableBuilder(
-      listenable: playerModel,
+      listenable: reproductor,
       builder: (context, _) {
-        final song = playerModel.currentSong;
+        final song = reproductor.currentSong;
         if (song == null) {
           return const SizedBox.shrink();
         }
 
         return Container(
-          color: AppTheme.surfaceElevated,
+          decoration: const BoxDecoration(
+            color: AppTheme.surfaceElevated,
+            border: Border(top: BorderSide(color: Colors.white10, width: 0.5)),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
             children: [
-              Icon(song.icon, color: AppTheme.primaryGreen, size: 28),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: song.gradientColors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(song.icon, color: Colors.white, size: 24),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -40,6 +58,7 @@ class PlayerBar extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       song.artistName,
                       style: const TextStyle(
@@ -53,14 +72,25 @@ class PlayerBar extends StatelessWidget {
                 ),
               ),
               IconButton(
+                icon: const Icon(Icons.skip_previous, color: Colors.white),
+                onPressed: reproductor.previous,
+                tooltip: 'Anterior',
+              ),
+              IconButton(
                 icon: Icon(
-                  playerModel.isPlaying
+                  reproductor.isPlaying
                       ? Icons.pause_circle_filled
                       : Icons.play_circle_filled,
                   color: AppTheme.primaryGreen,
-                  size: 36,
+                  size: 38,
                 ),
-                onPressed: () => playerModel.togglePlay(),
+                onPressed: reproductor.togglePlay,
+                tooltip: reproductor.isPlaying ? 'Pausar' : 'Reproducir',
+              ),
+              IconButton(
+                icon: const Icon(Icons.skip_next, color: Colors.white),
+                onPressed: reproductor.next,
+                tooltip: 'Siguiente',
               ),
             ],
           ),

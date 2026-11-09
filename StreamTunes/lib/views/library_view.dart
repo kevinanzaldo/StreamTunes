@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../state/library_model.dart';
-import '../state/player_model.dart';
 import '../theme/app_theme.dart';
+import '../view_models/library_view_model.dart';
+import '../view_models/reproductor_view_model.dart';
+import '../widgets/library_scope.dart';
 import '../widgets/song_tile.dart';
 
 class LibraryView extends StatelessWidget {
-  final PlayerModel playerModel;
-  final LibraryModel libraryModel;
+  final ReproductorViewModel? playerModel;
+  final LibraryViewModel? libraryModel;
 
-  const LibraryView({
-    super.key,
-    required this.playerModel,
-    required this.libraryModel,
-  });
+  const LibraryView({super.key, this.playerModel, this.libraryModel});
 
-  void _showNewPlaylistDialog(BuildContext context) {
+  void _showNewPlaylistDialog(BuildContext context, LibraryViewModel lib) {
     final controller = TextEditingController();
     showDialog(
       context: context,
@@ -43,7 +40,7 @@ class LibraryView extends StatelessWidget {
             onPressed: () {
               final name = controller.text.trim();
               if (name.isNotEmpty) {
-                libraryModel.createPlaylist(name);
+                lib.createPlaylist(name);
                 Navigator.pop(ctx);
               }
             },
@@ -59,6 +56,8 @@ class LibraryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lib = libraryModel ?? LibraryScope.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Playlists'),
@@ -66,17 +65,17 @@ class LibraryView extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.add, color: AppTheme.primaryGreen),
             tooltip: 'Crear playlist',
-            onPressed: () => _showNewPlaylistDialog(context),
+            onPressed: () => _showNewPlaylistDialog(context, lib),
           ),
         ],
       ),
       body: ListenableBuilder(
-        listenable: libraryModel,
+        listenable: lib,
         builder: (context, _) {
-          final playlists = libraryModel.playlists;
+          final playlists = lib.playlists;
 
           return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80),
+            padding: const EdgeInsets.only(bottom: 96),
             itemCount: playlists.length,
             itemBuilder: (context, index) {
               final pl = playlists[index];
@@ -113,7 +112,7 @@ class LibraryView extends StatelessWidget {
                         return SongTile(
                           song: s,
                           playerModel: playerModel,
-                          libraryModel: libraryModel,
+                          libraryModel: lib,
                         );
                       }).toList(),
               );

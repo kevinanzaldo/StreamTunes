@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
 
 import '../models/song.dart';
-import '../state/library_model.dart';
-import '../state/player_model.dart';
 import '../theme/app_theme.dart';
+import '../view_models/library_view_model.dart';
+import '../view_models/reproductor_view_model.dart';
+import 'library_scope.dart';
+import 'reproductor_scope.dart';
 
 class SongTile extends StatelessWidget {
   final Song song;
-  final PlayerModel playerModel;
-  final LibraryModel libraryModel;
+  final ReproductorViewModel? playerModel;
+  final LibraryViewModel? libraryModel;
 
   const SongTile({
     super.key,
     required this.song,
-    required this.playerModel,
-    required this.libraryModel,
+    this.playerModel,
+    this.libraryModel,
   });
 
-  void _showAddDialog(BuildContext context) {
+  void _showAddDialog(BuildContext context, LibraryViewModel lib) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -28,7 +30,7 @@ class SongTile extends StatelessWidget {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: libraryModel.playlists.map((pl) {
+          children: lib.playlists.map((pl) {
             return ListTile(
               leading: const Icon(
                 Icons.queue_music,
@@ -36,7 +38,7 @@ class SongTile extends StatelessWidget {
               ),
               title: Text(pl.name, style: const TextStyle(color: Colors.white)),
               onTap: () {
-                libraryModel.addSongToPlaylist(pl.id, song);
+                lib.addSongToPlaylist(pl.id, song);
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Guardado en "${pl.name}"')),
@@ -57,11 +59,13 @@ class SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final player = playerModel ?? ReproductorScope.of(context);
+    final library = libraryModel ?? LibraryScope.of(context);
+
     return ListenableBuilder(
-      listenable: playerModel,
+      listenable: player,
       builder: (context, _) {
-        final isPlaying =
-            playerModel.currentSong?.id == song.id && playerModel.isPlaying;
+        final isPlaying = player.currentSong?.id == song.id && player.isPlaying;
 
         return ListTile(
           leading: Icon(
@@ -81,10 +85,10 @@ class SongTile extends StatelessWidget {
           ),
           trailing: IconButton(
             icon: const Icon(Icons.playlist_add, color: Colors.white60),
-            onPressed: () => _showAddDialog(context),
+            onPressed: () => _showAddDialog(context, library),
           ),
           onTap: () {
-            playerModel.playSong(song);
+            player.play(song);
           },
         );
       },

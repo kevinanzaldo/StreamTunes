@@ -2,21 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../data/mock_data.dart';
 import '../models/song.dart';
-import '../state/library_model.dart';
-import '../state/player_model.dart';
 import '../theme/app_theme.dart';
+import '../view_models/library_view_model.dart';
+import '../view_models/reproductor_view_model.dart';
 import '../widgets/song_tile.dart';
 import 'artist_detail_view.dart';
 
 class HomeView extends StatelessWidget {
-  final PlayerModel playerModel;
-  final LibraryModel libraryModel;
+  final ReproductorViewModel? playerModel;
+  final LibraryViewModel? libraryModel;
 
-  const HomeView({
-    super.key,
-    required this.playerModel,
-    required this.libraryModel,
-  });
+  const HomeView({super.key, this.playerModel, this.libraryModel});
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +28,7 @@ class HomeView extends StatelessWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 80),
+        padding: const EdgeInsets.only(bottom: 96),
         children: [
           // Acceso a bandas independientes
           const Padding(
