@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'band.dart';
+
 class Artist {
   final String id;
   final String name;
@@ -32,6 +34,26 @@ class Artist {
     },
     this.yesterdayPlays = 142,
   });
+
+  /// Adaptador temporal: permite abrir `ArtistDetailView` desde una [Band]
+  /// hasta que esa pantalla se migre a `Band` (paso 3 de la Fase 2).
+  /// El ícono y el degradado son solo de presentación.
+  factory Artist.fromBand(Band band) {
+    return Artist(
+      id: band.id,
+      name: band.name,
+      genre: band.genre,
+      bio: band.bio,
+      monthlyListeners: 0,
+      avatarGradient: const [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
+      avatarIcon: Icons.music_note,
+      donationGoal: band.donationGoal,
+      donationsCollected: band.donationsCollected,
+      location: band.location,
+      socialLinks: band.socialLinks,
+      yesterdayPlays: 0,
+    );
+  }
 
   String get formattedListeners {
     if (monthlyListeners >= 1000000) {

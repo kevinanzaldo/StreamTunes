@@ -1,21 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../state/library_model.dart';
-import '../state/player_model.dart';
 import '../theme/app_theme.dart';
+import '../view_models/library_view_model.dart';
+import '../widgets/library_scope.dart';
 import '../widgets/song_tile.dart';
+import 'session_gate.dart';
 
 class LibraryView extends StatelessWidget {
-  final PlayerModel playerModel;
-  final LibraryModel libraryModel;
+  const LibraryView({super.key});
 
-  const LibraryView({
-    super.key,
-    required this.playerModel,
-    required this.libraryModel,
-  });
-
-  void _showNewPlaylistDialog(BuildContext context) {
+  void _showNewPlaylistDialog(BuildContext context, LibraryViewModel lib) {
     final controller = TextEditingController();
     showDialog(
       context: context,
@@ -40,11 +34,14 @@ class LibraryView extends StatelessWidget {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                libraryModel.createPlaylist(name);
-                Navigator.pop(ctx);
+              if (name.isEmpty) return;
+              final messenger = ScaffoldMessenger.of(context);
+              final ok = await lib.createPlaylist(name);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (!ok && lib.error != null) {
+                messenger.showSnackBar(SnackBar(content: Text(lib.error!)));
               }
             },
             style: ElevatedButton.styleFrom(
@@ -59,6 +56,16 @@ class LibraryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SessionGate(
+      title: 'Playlists',
+      message: 'Ingresá para armar tus playlists y ver tus donaciones.',
+      builder: _buildLibrary,
+    );
+  }
+
+  Widget _buildLibrary(BuildContext context) {
+    final lib = LibraryScope.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Playlists'),
@@ -66,17 +73,40 @@ class LibraryView extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.add, color: AppTheme.primaryGreen),
             tooltip: 'Crear playlist',
-            onPressed: () => _showNewPlaylistDialog(context),
+            onPressed: () => _showNewPlaylistDialog(context, lib),
           ),
         ],
       ),
       body: ListenableBuilder(
-        listenable: libraryModel,
+        listenable: lib,
         builder: (context, _) {
-          final playlists = libraryModel.playlists;
+          final playlists = lib.playlists;
+
+          if (lib.isLoading && playlists.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (lib.loadFailed && playlists.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    lib.error ?? 'No se pudo cargar tu biblioteca.',
+                    style: const TextStyle(color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: lib.load,
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80),
+            padding: const EdgeInsets.only(bottom: 96),
             itemCount: playlists.length,
             itemBuilder: (context, index) {
               final pl = playlists[index];
@@ -110,11 +140,7 @@ class LibraryView extends StatelessWidget {
                         ),
                       ]
                     : pl.songs.map((s) {
-                        return SongTile(
-                          song: s,
-                          playerModel: playerModel,
-                          libraryModel: libraryModel,
-                        );
+                        return SongTile(song: s);
                       }).toList(),
               );
             },

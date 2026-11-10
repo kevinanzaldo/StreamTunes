@@ -1,89 +1,205 @@
 import 'package:flutter/material.dart';
 
-import '../state/library_model.dart';
-import '../state/player_model.dart';
 import '../widgets/player_bar.dart';
+import '../widgets/session_scope.dart';
+import 'account_view.dart';
+import 'band_dashboard_view.dart';
 import 'home_view.dart';
 import 'library_view.dart';
 import 'upload_view.dart';
 
-class MainNavigationShell extends StatefulWidget {
-  final PlayerModel playerModel;
-  final LibraryModel libraryModel;
+enum _NavDestination { home, upload, playlists, bandDashboard, account }
 
-  const MainNavigationShell({
-    super.key,
-    required this.playerModel,
-    required this.libraryModel,
-  });
+class MainNavigationShell extends StatefulWidget {
+  static const double breakpointWidth = 600.0;
+
+  const MainNavigationShell({super.key});
 
   @override
   State<MainNavigationShell> createState() => _MainNavigationShellState();
 }
 
 class _MainNavigationShellState extends State<MainNavigationShell> {
-  int _currentIndex = 0;
+  _NavDestination _currentDestination = _NavDestination.home;
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> pages = [
-      HomeView(
-        playerModel: widget.playerModel,
-        libraryModel: widget.libraryModel,
-      ),
-      UploadView(
-        onSongUploaded: () {
-          setState(() {
-            _currentIndex = 0; // Vuelve al inicio para ver el tema publicado
-          });
-        },
-      ),
-      LibraryView(
-        playerModel: widget.playerModel,
-        libraryModel: widget.libraryModel,
-      ),
+    final session = SessionScope.maybeOf(context);
+    final hasBand =
+        session != null && session.hasBand && session.activeBand != null;
+    final activeBand = session?.activeBand;
+
+    final availableDestinations = <_NavDestination>[
+      _NavDestination.home,
+      _NavDestination.upload,
+      _NavDestination.playlists,
+      if (hasBand) _NavDestination.bandDashboard,
+      _NavDestination.account,
     ];
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Mantener la pantalla activa sin reconstrucciones raras
-          IndexedStack(index: _currentIndex, children: pages),
+    var currentIndex = availableDestinations.indexOf(_currentDestination);
+    if (currentIndex == -1) {
+      _currentDestination = _NavDestination.home;
+      currentIndex = 0;
+    }
 
-          // Reproductor fijo flotante abajo
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SafeArea(
-              top: false,
-              child: PlayerBar(playerModel: widget.playerModel),
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isCompact = screenWidth < MainNavigationShell.breakpointWidth;
+
+    final List<Widget> pages = availableDestinations.map<Widget>((dest) {
+      switch (dest) {
+        case _NavDestination.home:
+          return const HomeView();
+        case _NavDestination.upload:
+          return UploadView(
+            onSongUploaded: () {
+              setState(() {
+                _currentDestination = _NavDestination.home;
+              });
+            },
+          );
+        case _NavDestination.playlists:
+          return const LibraryView();
+        case _NavDestination.bandDashboard:
+          return KeyedSubtree(
+            key: ValueKey('band_dashboard_${activeBand!.id}'),
+            child: BandDashboardView(band: activeBand),
+          );
+        case _NavDestination.account:
+          return const AccountView();
+      }
+    }).toList();
+
+    void onDestinationSelected(int index) {
+      if (index >= 0 && index < availableDestinations.length) {
+        final selected = availableDestinations[index];
+        if (_currentDestination != selected) {
           setState(() {
-            _currentIndex = index;
+            _currentDestination = selected;
           });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Inicio',
+        }
+      }
+    }
+
+    if (isCompact) {
+      // Disposición móvil: NavigationBar inferior
+      return Scaffold(
+        body: Stack(
+          children: [
+            IndexedStack(index: currentIndex, children: pages),
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(top: false, child: PlayerBar()),
+            ),
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: currentIndex,
+          onDestinationSelected: onDestinationSelected,
+          destinations: availableDestinations.map((dest) {
+            switch (dest) {
+              case _NavDestination.home:
+                return const NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Inicio',
+                );
+              case _NavDestination.upload:
+                return const NavigationDestination(
+                  icon: Icon(Icons.cloud_upload_outlined),
+                  selectedIcon: Icon(Icons.cloud_upload),
+                  label: 'Subir',
+                );
+              case _NavDestination.playlists:
+                return const NavigationDestination(
+                  icon: Icon(Icons.queue_music_outlined),
+                  selectedIcon: Icon(Icons.queue_music),
+                  label: 'Playlists',
+                );
+              case _NavDestination.bandDashboard:
+                return const NavigationDestination(
+                  icon: Icon(Icons.dashboard_outlined),
+                  selectedIcon: Icon(Icons.dashboard),
+                  label: 'Mi banda',
+                );
+              case _NavDestination.account:
+                return const NavigationDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Cuenta',
+                );
+            }
+          }).toList(),
+        ),
+      );
+    }
+
+    // Disposición pantalla ancha (>= 600px): NavigationRail lateral
+    return Scaffold(
+      body: Row(
+        children: [
+          NavigationRail(
+            selectedIndex: currentIndex,
+            onDestinationSelected: onDestinationSelected,
+            labelType: NavigationRailLabelType.all,
+            leading: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              child: Icon(
+                Icons.graphic_eq,
+                color: Colors.greenAccent,
+                size: 32,
+              ),
+            ),
+            destinations: availableDestinations.map((dest) {
+              switch (dest) {
+                case _NavDestination.home:
+                  return const NavigationRailDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home),
+                    label: Text('Inicio'),
+                  );
+                case _NavDestination.upload:
+                  return const NavigationRailDestination(
+                    icon: Icon(Icons.cloud_upload_outlined),
+                    selectedIcon: Icon(Icons.cloud_upload),
+                    label: Text('Subir'),
+                  );
+                case _NavDestination.playlists:
+                  return const NavigationRailDestination(
+                    icon: Icon(Icons.queue_music_outlined),
+                    selectedIcon: Icon(Icons.queue_music),
+                    label: Text('Playlists'),
+                  );
+                case _NavDestination.bandDashboard:
+                  return const NavigationRailDestination(
+                    icon: Icon(Icons.dashboard_outlined),
+                    selectedIcon: Icon(Icons.dashboard),
+                    label: Text('Mi banda'),
+                  );
+                case _NavDestination.account:
+                  return const NavigationRailDestination(
+                    icon: Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person),
+                    label: Text('Cuenta'),
+                  );
+              }
+            }).toList(),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.cloud_upload_outlined),
-            activeIcon: Icon(Icons.cloud_upload),
-            label: 'Subir',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.queue_music_outlined),
-            activeIcon: Icon(Icons.queue_music),
-            label: 'Playlists',
+          const VerticalDivider(thickness: 1, width: 1),
+          Expanded(
+            child: Stack(
+              children: [
+                IndexedStack(index: currentIndex, children: pages),
+                const Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: SafeArea(top: false, child: PlayerBar()),
+                ),
+              ],
+            ),
           ),
         ],
       ),

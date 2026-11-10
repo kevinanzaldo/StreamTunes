@@ -30,8 +30,9 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-# /build/
-build/native_assets/
+# Flutter build: ignore intermediate build artifacts, keep build/web for deployment
+build/*
+!build/web/
 build/test_cache/
 build/unit_test_assets/
 /coverage/

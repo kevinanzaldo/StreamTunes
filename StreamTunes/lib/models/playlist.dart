@@ -22,6 +22,22 @@ class Playlist {
   }) : songs = songs ?? [],
        createdAt = createdAt ?? DateTime.now();
 
+  /// Construye una playlist desde una fila de `playlists`. Los temas se pasan
+  /// aparte porque vienen de la tabla `playlist_songs`. El degradado y el ícono
+  /// son solo de presentación (la base no los guarda).
+  factory Playlist.fromJson(
+    Map<String, dynamic> json, {
+    List<Song> songs = const [],
+  }) {
+    return Playlist(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: (json['description'] as String?) ?? '',
+      songs: List<Song>.of(songs),
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+
   int get songCount => songs.length;
 
   Duration get totalDuration {

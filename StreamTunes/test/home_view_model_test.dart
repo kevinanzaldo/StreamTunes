@@ -1,0 +1,141 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:streamtunes/models/song.dart';
+import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_song_repository.dart';
+import 'package:streamtunes/repositories/interfaces/song_repository.dart';
+import 'package:streamtunes/view_models/home_view_model.dart';
+import 'package:streamtunes/view_models/library_view_model.dart';
+import 'package:streamtunes/view_models/reproductor_view_model.dart';
+import 'package:streamtunes/views/home_view.dart';
+import 'package:streamtunes/widgets/library_scope.dart';
+import 'package:streamtunes/widgets/reproductor_scope.dart';
+
+/// Repositorio que falla en la primera llamada y después responde bien.
+class _FlakySongRepository implements SongRepository {
+  final FakeSongRepository _delegate = FakeSongRepository();
+  int calls = 0;
+
+  @override
+  Future<List<Song>> getLatestSongs({int limit = 50}) async {
+    calls++;
+    if (calls == 1) throw Exception('sin red');
+    return _delegate.getLatestSongs(limit: limit);
+  }
+
+  @override
+  Future<List<Song>> getSongsByBand(String bandId) =>
+      _delegate.getSongsByBand(bandId);
+
+  @override
+  Future<Song> addSong(Song song, {String? albumId}) =>
+      _delegate.addSong(song, albumId: albumId);
+
+  @override
+  Future<void> recordPlayEvent({
+    required String songId,
+    required String bandId,
+    required int secondsListened,
+    String? userId,
+  }) => _delegate.recordPlayEvent(
+    songId: songId,
+    bandId: bandId,
+    secondsListened: secondsListened,
+    userId: userId,
+  );
+}
+
+HomeViewModel _crearViewModel({SongRepository? songs}) {
+  return HomeViewModel(
+    songRepository: songs ?? FakeSongRepository(),
+    bandRepository: FakeBandRepository(),
+  );
+}
+
+void main() {
+  test(
+    'HomeViewModel: load() pasa a ready con bandas y temas por fecha',
+    () async {
+      final vm = _crearViewModel();
+      addTearDown(vm.dispose);
+
+      expect(vm.status, HomeStatus.loading);
+      await vm.load();
+
+      expect(vm.status, HomeStatus.ready);
+      expect(vm.bands, isNotEmpty);
+      expect(vm.latestSongs, isNotEmpty);
+
+      final fechas = vm.latestSongs.map((s) => s.uploadedAt).toList();
+      final ordenadas = List<DateTime>.of(fechas)
+        ..sort((a, b) => b.compareTo(a));
+      expect(fechas, equals(ordenadas));
+    },
+  );
+
+  test(
+    'HomeViewModel: si el repositorio falla pasa a error y reintentar recupera',
+    () async {
+      final vm = _crearViewModel(songs: _FlakySongRepository());
+      addTearDown(vm.dispose);
+
+      await vm.load();
+      expect(vm.status, HomeStatus.error);
+
+      await vm.load();
+      expect(vm.status, HomeStatus.ready);
+      expect(vm.latestSongs, isNotEmpty);
+    },
+  );
+
+  test(
+    'HomeViewModel: artistFor devuelve la misma instancia por banda',
+    () async {
+      final vm = _crearViewModel();
+      addTearDown(vm.dispose);
+      await vm.load();
+
+      final band = vm.bands.first;
+      final artist = vm.artistFor(band);
+
+      expect(artist.id, band.id);
+      expect(artist.name, band.name);
+      expect(identical(artist, vm.artistFor(band)), isTrue);
+    },
+  );
+
+  testWidgets(
+    'HomeView: muestra error con botón Reintentar y luego el contenido',
+    (WidgetTester tester) async {
+      final vm = _crearViewModel(songs: _FlakySongRepository());
+      final player = ReproductorViewModel();
+      final library = LibraryViewModel();
+      addTearDown(vm.dispose);
+      addTearDown(player.dispose);
+      addTearDown(library.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReproductorScope(
+            reproductor: player,
+            child: LibraryScope(
+              library: library,
+              child: HomeView(viewModel: vm),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reintentar'), findsOneWidget);
+      expect(find.text('Últimos lanzamientos'), findsNothing);
+
+      await tester.tap(find.text('Reintentar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reintentar'), findsNothing);
+      expect(find.text('Bandas'), findsOneWidget);
+      expect(find.text('Últimos lanzamientos'), findsOneWidget);
+    },
+  );
+}
