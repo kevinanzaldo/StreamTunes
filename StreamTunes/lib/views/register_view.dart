@@ -82,6 +82,48 @@ class _RegisterViewState extends State<RegisterView> {
             busy: session.busy,
             onPressed: _submit,
           ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                Expanded(child: Divider(color: Colors.white24)),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'o registrate con',
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                  ),
+                ),
+                Expanded(child: Divider(color: Colors.white24)),
+              ],
+            ),
+          ),
+          OutlinedButton.icon(
+            key: const ValueKey('register_google_button'),
+            icon: Image.network(
+              'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
+              width: 20,
+              height: 20,
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.g_mobiledata, color: Colors.white, size: 22),
+            ),
+            label: const Text(
+              'Continuar con Google',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: const BorderSide(color: Colors.white24),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: session.busy
+                ? null
+                : () async {
+                    final nav = Navigator.of(context);
+                    final ok = await session.signInWithGoogle();
+                    if (ok && mounted) nav.pop(true);
+                  },
+          ),
         ],
       ),
     );

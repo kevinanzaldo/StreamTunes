@@ -9,7 +9,16 @@ Song songFromRow(SupabaseClient client, Map<String, dynamic> row) {
   final band = row['bands'] as Map<String, dynamic>?;
   final album = row['albums'] as Map<String, dynamic>?;
   final path = row['audio_path'] as String?;
-  final rawCover = (album?['cover_url'] as String?) ?? (band?['cover_url'] as String?);
+  // Priorizar portada directa de la canción si existe en la base, o la del álbum.
+  // NO usamos la portada de la banda para los temas individuales para evitar que todas
+  // las canciones compartan la misma foto y conserven su identidad visual propia.
+  final songCover = row['cover_url'] as String?;
+  final albumCover = album?['cover_url'] as String?;
+  final rawCover = (songCover != null && songCover.isNotEmpty)
+      ? songCover
+      : (albumCover != null && albumCover.isNotEmpty)
+          ? albumCover
+          : null;
   String? resolvedCover;
   if (rawCover != null && rawCover.isNotEmpty) {
     if (rawCover.startsWith('http://') ||

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'config/app_config.dart';
@@ -90,9 +91,11 @@ class _StreamTunesAppState extends State<StreamTunesApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Si la app pasa a estado inactive o paused (ej. entra llamada telefónica), pausar música
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
+    // Si la app pasa a estado inactive o paused en plataformas nativas (ej. entra llamada telefónica), pausar música.
+    // En Web (kIsWeb), la música debe seguir sonando aunque el usuario cambie de pestaña o minimice el navegador.
+    if (!kIsWeb &&
+        (state == AppLifecycleState.inactive ||
+            state == AppLifecycleState.paused)) {
       _reproductorViewModel.pause();
     }
   }

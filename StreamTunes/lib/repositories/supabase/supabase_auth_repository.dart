@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/profile.dart';
@@ -66,6 +67,20 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _auth.signOut();
+
+  @override
+  Future<void> signInWithGoogle() async {
+    try {
+      await _auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb ? null : 'io.supabase.streamtunes://login-callback/',
+      );
+    } on AuthException catch (e) {
+      throw RepositoryFailure(_mensaje(e));
+    } catch (e) {
+      throw RepositoryFailure('No se pudo conectar con Google: $e');
+    }
+  }
 
   @override
   Future<void> sendPasswordReset(String email) async {

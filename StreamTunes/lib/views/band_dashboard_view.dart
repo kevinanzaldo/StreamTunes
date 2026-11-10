@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../models/band.dart';
+import '../services/dispositivo_capacidades.dart';
 import '../theme/app_theme.dart';
 import '../view_models/band_dashboard_view_model.dart';
 import '../widgets/player_bar.dart';
@@ -325,51 +328,406 @@ class _BandDashboardViewState extends State<BandDashboardView> {
   Widget _buildQuickActions(BuildContext context, Band band) {
     final isApproved = band.isApproved;
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isApproved
-                  ? AppTheme.primaryGreen
-                  : Colors.grey[800],
-              foregroundColor: isApproved ? Colors.black : Colors.white38,
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isApproved
+                      ? AppTheme.primaryGreen
+                      : Colors.grey[800],
+                  foregroundColor: isApproved ? Colors.black : Colors.white38,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: isApproved
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const UploadView()),
+                        );
+                      }
+                    : null,
+                icon: const Icon(Icons.upload, size: 18),
+                label: const Text(
+                  'Subir tema',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white24),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => BandPublicView(band: band)),
+                  );
+                },
+                icon: const Icon(Icons.visibility, size: 18),
+                label: const Text('Ver perfil público'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            key: const ValueKey('edit_band_button'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.primaryGreen,
+              side: const BorderSide(color: AppTheme.primaryGreen),
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            onPressed: isApproved
-                ? () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const UploadView()),
-                    );
-                  }
-                : null,
-            icon: const Icon(Icons.upload, size: 18),
+            onPressed: () => _showEditBandDialog(context, band),
+            icon: const Icon(Icons.edit, size: 18),
             label: const Text(
-              'Subir tema',
+              'Editar datos y foto de la banda',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white24),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => BandPublicView(band: band)),
-              );
-            },
-            icon: const Icon(Icons.visibility, size: 18),
-            label: const Text('Ver perfil público'),
-          ),
-        ),
       ],
+    );
+  }
+
+  Future<void> _showEditBandDialog(BuildContext context, Band band) async {
+    final nameController = TextEditingController(text: band.name);
+    final genreController = TextEditingController(text: band.genre);
+    final bioController = TextEditingController(text: band.bio);
+    final locationController = TextEditingController(text: band.location);
+    final goalController = TextEditingController(
+      text: band.donationGoal > 0 ? band.donationGoal.toInt().toString() : '',
+    );
+    SelectedImageFile? selectedImage;
+    bool saving = false;
+    String? localError;
+
+    final repos = RepositoriesScope.of(context);
+    final session = SessionScope.maybeOf(context);
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: !saving,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppTheme.surfaceElevated,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.edit, color: AppTheme.primaryGreen),
+                  SizedBox(width: 10),
+                  Text(
+                    'Editar datos y foto',
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 500,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (localError != null)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withAlpha(40),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            localError!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      // Portada de la banda
+                      const Text(
+                        'Foto / Portada de la banda',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: saving
+                            ? null
+                            : () async {
+                                final img = await DispositivoCapacidades()
+                                    .seleccionarFotoArchivo();
+                                if (img != null) {
+                                  setDialogState(() {
+                                    selectedImage = img;
+                                  });
+                                }
+                              },
+                        child: Container(
+                          height: 140,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                if (selectedImage != null)
+                                  Image.memory(
+                                    selectedImage!.bytes,
+                                    fit: BoxFit.cover,
+                                  )
+                                else if (band.coverUrl != null &&
+                                    band.coverUrl!.isNotEmpty)
+                                  Image.network(
+                                    band.coverUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        const Center(
+                                      child: Icon(
+                                        Icons.music_note,
+                                        color: Colors.white38,
+                                        size: 48,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  const Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.add_a_photo,
+                                          color: AppTheme.primaryGreen,
+                                          size: 36,
+                                        ),
+                                        SizedBox(height: 6),
+                                        Text(
+                                          'Tocar para elegir foto de portada',
+                                          style: TextStyle(
+                                            color: AppTheme.textSecondary,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                Positioned(
+                                  right: 8,
+                                  bottom: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black87,
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.camera_alt,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Cambiar foto',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Nombre
+                      TextField(
+                        controller: nameController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre de la banda *',
+                          labelStyle: TextStyle(color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Género
+                      TextField(
+                        controller: genreController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText:
+                              'Género musical (ej. Rock Alternativo, Cumbia)',
+                          labelStyle: TextStyle(color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Ubicación
+                      TextField(
+                        controller: locationController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Ubicación (ej. Buenos Aires, Mendoza)',
+                          labelStyle: TextStyle(color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Biografía
+                      TextField(
+                        controller: bioController,
+                        style: const TextStyle(color: Colors.white),
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Biografía / Historia de la banda',
+                          labelStyle: TextStyle(color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Meta de donación
+                      TextField(
+                        controller: goalController,
+                        style: const TextStyle(color: Colors.white),
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Meta de fondo colectivo (\$ ARS)',
+                          labelStyle: TextStyle(color: AppTheme.textSecondary),
+                          prefixText: '\$ ',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving ? null : () => Navigator.pop(dialogCtx),
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          final newName = nameController.text.trim();
+                          if (newName.length < 2) {
+                            setDialogState(() {
+                              localError =
+                                  'El nombre de la banda debe tener al menos 2 letras.';
+                            });
+                            return;
+                          }
+
+                          setDialogState(() {
+                            saving = true;
+                            localError = null;
+                          });
+
+                          try {
+                            String? newCoverUrl = band.coverUrl;
+                            if (selectedImage != null) {
+                              try {
+                                final path = await repos.storage.uploadCover(
+                                  bandId: band.id,
+                                  bytes: selectedImage!.bytes,
+                                  fileName: selectedImage!.name,
+                                );
+                                newCoverUrl = repos.storage.getCoverPublicUrl(path);
+                              } catch (_) {
+                                newCoverUrl =
+                                    'data:image/jpeg;base64,${base64Encode(selectedImage!.bytes)}';
+                              }
+                            }
+
+                            final double goal =
+                                double.tryParse(goalController.text.trim()) ??
+                                band.donationGoal;
+
+                            final updated = band.copyWith(
+                              name: newName,
+                              genre: genreController.text.trim(),
+                              location: locationController.text.trim(),
+                              bio: bioController.text.trim(),
+                              donationGoal: goal,
+                              coverUrl: newCoverUrl,
+                            );
+
+                            await repos.bands.updateBand(updated);
+                            await session?.refreshMemberships();
+                            _viewModel.load();
+
+                            if (ctx.mounted) {
+                              Navigator.pop(dialogCtx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    '¡Datos y portada de la banda actualizados!',
+                                  ),
+                                  backgroundColor: AppTheme.primaryGreen,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() {
+                              saving = false;
+                              localError = 'Error al actualizar: $e';
+                            });
+                          }
+                        },
+                  child: saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
+                        )
+                      : const Text(
+                          'Guardar cambios',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -511,7 +869,16 @@ class _BandDashboardViewState extends State<BandDashboardView> {
     final activeBand = session?.activeBand ?? widget.band;
 
     return Scaffold(
-      appBar: AppBar(title: Text('Panel: ${activeBand.name}')),
+      appBar: AppBar(
+        title: Text('Panel: ${activeBand.name}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white),
+            tooltip: 'Editar datos y foto de la banda',
+            onPressed: () => _showEditBandDialog(context, activeBand),
+          ),
+        ],
+      ),
       body: ListenableBuilder(
         listenable: _viewModel,
         builder: (context, _) {

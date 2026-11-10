@@ -108,6 +108,19 @@ class SessionViewModel extends ChangeNotifier {
     });
   }
 
+  /// Inicia sesión o registro con Google
+  Future<bool> signInWithGoogle() async {
+    if (_busy) return false;
+    return _run(() async {
+      await _authRepository.signInWithGoogle();
+      final profile = await _authRepository.restoreSession();
+      if (profile != null) {
+        await _loadAccount(profile);
+      }
+      return true;
+    });
+  }
+
   /// Crea la cuenta. Si el proyecto exige confirmar el email no queda sesión
   /// iniciada: devuelve `true`, [isLoggedIn] es `false` y [notice] lo explica.
   Future<bool> signUp({

@@ -57,7 +57,7 @@ class SupabaseSongRepository implements SongRepository {
 
         if (existing != null) {
           resolvedAlbumId = existing['id'] as String?;
-          if (song.coverUrl != null && existing['cover_url'] == null) {
+          if (song.coverUrl != null && song.coverUrl!.isNotEmpty) {
             await _client
                 .from('albums')
                 .update({'cover_url': song.coverUrl})
@@ -69,7 +69,8 @@ class SupabaseSongRepository implements SongRepository {
               .insert({
                 'band_id': song.artistId,
                 'title': song.album.trim(),
-                if (song.coverUrl != null) 'cover_url': song.coverUrl,
+                if (song.coverUrl != null && song.coverUrl!.isNotEmpty)
+                  'cover_url': song.coverUrl,
               })
               .select('id')
               .single();
@@ -80,22 +81,28 @@ class SupabaseSongRepository implements SongRepository {
       }
     }
 
-    // Si la banda no tiene portada y este tema tiene portada, asignarla a la banda
-    if (song.coverUrl != null) {
-      try {
-        await _client
-            .from('bands')
-            .update({'cover_url': song.coverUrl})
-            .eq('id', song.artistId)
-            .isFilter('cover_url', null);
-      } catch (_) {}
-    }
+    final insertData = <String, dynamic>{
+      ...song.toInsertJson(albumId: resolvedAlbumId),
+      if (song.coverUrl != null && song.coverUrl!.isNotEmpty)
+        'cover_url': song.coverUrl,
+    };
 
-    final row = await _client
-        .from('songs')
-        .insert(song.toInsertJson(albumId: resolvedAlbumId))
-        .select(_select)
-        .single();
+    Map<String, dynamic> row;
+    try {
+      row = await _client
+          .from('songs')
+          .insert(insertData)
+          .select(_select)
+          .single();
+    } catch (_) {
+      // Si la columna cover_url todavía no fue agregada a la tabla songs en Supabase, reintentar sin ese campo
+      insertData.remove('cover_url');
+      row = await _client
+          .from('songs')
+          .insert(insertData)
+          .select(_select)
+          .single();
+    }
     return songFromRow(_client, row);
   }
 

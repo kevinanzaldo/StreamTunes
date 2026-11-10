@@ -25,6 +25,9 @@ abstract interface class BandRepository {
   /// Lanza `RepositoryFailure` si ya existe una con ese nombre (mismo `slug`).
   Future<Band> createBand(Band band);
 
+  /// Actualiza los datos editables y foto de portada de una banda.
+  Future<Band> updateBand(Band band);
+
   /// Bandas de las que [userId] es miembro (cualquier estado), con su rol.
   Future<List<BandMembership>> getMyMemberships(String userId);
 }

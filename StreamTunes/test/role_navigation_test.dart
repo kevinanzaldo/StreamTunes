@@ -49,7 +49,7 @@ void main() {
     );
   }
 
-  testWidgets('Visitante: solo ve 4 pestañas y no ve Mi banda', (
+  testWidgets('Visitante: solo ve 2 pestañas (Inicio y Cuenta)', (
     WidgetTester tester,
   ) async {
     await session.restore();
@@ -58,13 +58,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Inicio'), findsOneWidget);
-    expect(find.text('Subir'), findsOneWidget);
-    expect(find.text('Playlists'), findsOneWidget);
     expect(find.text('Cuenta'), findsOneWidget);
+    expect(find.text('Subir'), findsNothing);
+    expect(find.text('Playlists'), findsNothing);
     expect(find.text('Mi banda'), findsNothing);
   });
 
-  testWidgets('Oyente sin banda: solo ve 4 pestañas y no ve Mi banda', (
+  testWidgets('Oyente sin banda: ve 3 pestañas y no ve Subir ni Mi banda', (
     WidgetTester tester,
   ) async {
     await session.restore();
@@ -79,9 +79,9 @@ void main() {
     expect(session.isLoggedIn, isTrue);
     expect(session.hasBand, isFalse);
     expect(find.text('Inicio'), findsOneWidget);
-    expect(find.text('Subir'), findsOneWidget);
     expect(find.text('Playlists'), findsOneWidget);
     expect(find.text('Cuenta'), findsOneWidget);
+    expect(find.text('Subir'), findsNothing);
     expect(find.text('Mi banda'), findsNothing);
   });
 

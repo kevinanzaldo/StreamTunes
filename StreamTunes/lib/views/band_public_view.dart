@@ -339,14 +339,35 @@ class _BandPublicViewState extends State<BandPublicView> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 36,
-                  backgroundColor: AppTheme.primaryGreen.withAlpha(40),
-                  child: const Icon(
-                    Icons.groups,
-                    size: 36,
-                    color: AppTheme.primaryGreen,
-                  ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(36),
+                  child: band.coverUrl != null && band.coverUrl!.isNotEmpty
+                      ? Image.network(
+                          band.coverUrl!,
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              CircleAvatar(
+                            radius: 36,
+                            backgroundColor:
+                                AppTheme.primaryGreen.withAlpha(40),
+                            child: const Icon(
+                              Icons.groups,
+                              size: 36,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                        )
+                      : CircleAvatar(
+                          radius: 36,
+                          backgroundColor: AppTheme.primaryGreen.withAlpha(40),
+                          child: const Icon(
+                            Icons.groups,
+                            size: 36,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

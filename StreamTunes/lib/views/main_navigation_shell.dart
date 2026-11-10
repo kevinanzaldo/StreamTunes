@@ -25,15 +25,20 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.maybeOf(context);
+    final isLoggedIn = session?.isLoggedIn ?? false;
     final hasBand =
         session != null && session.hasBand && session.activeBand != null;
     final activeBand = session?.activeBand;
 
+    // Regla de navegación:
+    // - Visitante sin loguear: solo ve 'Inicio' y 'Cuenta' (no ve Subir ni Playlists hasta iniciar sesión)
+    // - Usuario logueado sin banda: ve 'Inicio', 'Playlists' y 'Cuenta' (no ve Subir hasta tener una banda)
+    // - Usuario logueado con banda: ve 'Inicio', 'Subir', 'Playlists', 'Mi banda' y 'Cuenta'
     final availableDestinations = <_NavDestination>[
       _NavDestination.home,
-      _NavDestination.upload,
-      _NavDestination.playlists,
-      if (hasBand) _NavDestination.bandDashboard,
+      if (isLoggedIn && hasBand) _NavDestination.upload,
+      if (isLoggedIn) _NavDestination.playlists,
+      if (isLoggedIn && hasBand) _NavDestination.bandDashboard,
       _NavDestination.account,
     ];
 

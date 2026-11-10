@@ -21,6 +21,9 @@ abstract interface class AuthRepository {
 
   Future<void> signOut();
 
+  /// Inicia sesión o registro con Google OAuth.
+  Future<void> signInWithGoogle();
+
   Future<void> sendPasswordReset(String email);
 
   /// ¿El usuario de la sesión actual es moderador del Colectivo?

@@ -97,11 +97,48 @@ class _LoginViewState extends State<LoginView> {
             busy: session.busy,
             onPressed: _submit,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           TextButton(
             onPressed: session.busy ? null : _resetPassword,
             child: const Text('Olvidé mi contraseña'),
           ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                Expanded(child: Divider(color: Colors.white24)),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'o ingresá con',
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                  ),
+                ),
+                Expanded(child: Divider(color: Colors.white24)),
+              ],
+            ),
+          ),
+          OutlinedButton.icon(
+            key: const ValueKey('login_google_button'),
+            icon: Image.network(
+              'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
+              width: 20,
+              height: 20,
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.g_mobiledata, color: Colors.white, size: 22),
+            ),
+            label: const Text(
+              'Continuar con Google',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: const BorderSide(color: Colors.white24),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: session.busy ? null : () => session.signInWithGoogle(),
+          ),
+          const SizedBox(height: 16),
           OutlinedButton(
             onPressed: session.busy ? null : _openRegister,
             child: const Text('Crear cuenta'),

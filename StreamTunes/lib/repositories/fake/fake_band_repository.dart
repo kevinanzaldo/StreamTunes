@@ -89,6 +89,18 @@ class FakeBandRepository implements BandRepository {
   }
 
   @override
+  Future<Band> updateBand(Band band) async {
+    for (var i = 0; i < _created.length; i++) {
+      if (_created[i].id == band.id) {
+        _created[i] = band;
+        return band;
+      }
+    }
+    _created.add(band);
+    return band;
+  }
+
+  @override
   Future<List<BandMembership>> getMyMemberships(String userId) async {
     return [
       for (final artist in MockData.artists)

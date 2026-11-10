@@ -20,7 +20,7 @@ class UploadView extends StatefulWidget {
 
 class _UploadViewState extends State<UploadView> {
   final _titleController = TextEditingController();
-  final _albumController = TextEditingController(text: 'Demo Indie');
+  final _albumController = TextEditingController();
   late final UploadViewModel _viewModel;
   bool _ownsViewModel = false;
   bool _subirEnSegundoPlano = true;
@@ -71,7 +71,7 @@ class _UploadViewState extends State<UploadView> {
 
     final success = await _viewModel.publicarTema(
       titulo: title,
-      album: album.isEmpty ? 'Demo' : album,
+      album: album.isEmpty ? (title.isNotEmpty ? 'Sencillo - $title' : 'Sencillo') : album,
       artistId: band?.id,
       artistName: band?.name,
       subirEnSegundoPlano: _subirEnSegundoPlano,

@@ -129,6 +129,22 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> signInWithGoogle() async {
+    _newUsers++;
+    final user = _FakeUser(
+      profile: Profile(
+        id: 'user_google_$_newUsers',
+        displayName: 'Usuario Google Demo',
+        createdAt: DateTime.now(),
+      ),
+      email: 'usuario.google@gmail.com',
+      password: demoPassword,
+    );
+    _users.add(user);
+    _current = user;
+  }
+
+  @override
   Future<void> sendPasswordReset(String email) async {
     // En la demo no se envía ningún mail.
   }

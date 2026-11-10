@@ -27,8 +27,10 @@ void main() {
     expect(find.text('Bandas'), findsOneWidget);
     expect(find.text('Últimos lanzamientos'), findsOneWidget);
     expect(find.text('Inicio'), findsOneWidget);
-    expect(find.text('Subir'), findsOneWidget);
-    expect(find.text('Playlists'), findsOneWidget);
+    expect(find.text('Cuenta'), findsOneWidget);
+    // Subir y Playlists no se muestran al visitante hasta iniciar sesión
+    expect(find.text('Subir'), findsNothing);
+    expect(find.text('Playlists'), findsNothing);
   });
 
   testWidgets(

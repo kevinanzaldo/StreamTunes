@@ -87,6 +87,24 @@ class SupabaseBandRepository implements BandRepository {
   }
 
   @override
+  Future<Band> updateBand(Band band) async {
+    try {
+      final row = await _client
+          .from('bands')
+          .update(band.toUpdateJson())
+          .eq('id', band.id)
+          .select()
+          .single();
+      return Band.fromJson(row);
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') {
+        throw const RepositoryFailure('Ya existe una banda con ese nombre.');
+      }
+      throw RepositoryFailure('No se pudo actualizar la banda: ${e.message}');
+    }
+  }
+
+  @override
   Future<List<BandMembership>> getMyMemberships(String userId) async {
     final rows = await _client
         .from('band_members')

@@ -237,17 +237,13 @@ void main() {
   );
 
   testWidgets(
-    'StreamTunesApp: Playlists pide ingreso y después de entrar por Cuenta muestra la biblioteca',
+    'StreamTunesApp: entrar por Cuenta habilita y muestra Playlists',
     (WidgetTester tester) async {
       await tester.pumpWidget(const StreamTunesApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Playlists'));
-      await tester.pumpAndSettle();
-      expect(
-        find.text('Ingresá para armar tus playlists y ver tus donaciones.'),
-        findsOneWidget,
-      );
+      // Al no estar autenticado, Playlists no se muestra en navegación
+      expect(find.text('Playlists'), findsNothing);
 
       await tester.tap(find.text('Cuenta'));
       await tester.pumpAndSettle();
@@ -261,6 +257,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Ana Quiroga'), findsOneWidget);
 
+      expect(find.text('Playlists'), findsOneWidget);
       await tester.tap(find.text('Playlists'));
       await tester.pumpAndSettle();
       expect(find.byType(ExpansionTile), findsWidgets);
