@@ -63,13 +63,24 @@ class AudioService {
     }
   }
 
+  /// Streams directos del reproductor subyacente para sincronizar UI y fin de tema
+  Stream<Duration> get positionStream => player.positionStream;
+  Stream<Duration?> get durationStream => player.durationStream;
+  Stream<PlayerState> get playerStateStream => player.playerStateStream;
+  Duration? get currentDuration => _player?.duration;
+  Duration get currentPosition => _player?.position ?? Duration.zero;
+
   /// Carga y reproduce una URL de audio pública.
   Future<void> playUrl(String url) async {
     try {
+      // Detener cualquier reproducción previa inmediatamente
+      await player.stop();
       await player.setUrl(url);
       await player.play();
     } catch (e) {
-      debugPrint('AudioService: reproducción simulada o error en URL: $e');
+      debugPrint('AudioService: error al cargar URL "$url": $e');
+      // En caso de fallo (ej. 404), detener el reproductor para no dejar sonando el tema previo
+      await player.stop();
     }
   }
 

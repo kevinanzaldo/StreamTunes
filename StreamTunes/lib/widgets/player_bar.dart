@@ -35,18 +35,48 @@ class PlayerBar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: song.gradientColors,
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(song.icon, color: Colors.white, size: 24),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: song.coverUrl != null && song.coverUrl!.isNotEmpty
+                      ? Image.network(
+                          song.coverUrl!,
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: song.gradientColors,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Icon(
+                              song.icon,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: song.gradientColors,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: Icon(
+                            song.icon,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

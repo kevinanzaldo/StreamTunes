@@ -16,7 +16,8 @@ class SupabaseSongRepository implements SongRepository {
 
   final SupabaseClient _client;
 
-  static const String _select = '*, bands!inner(name, status), albums(title)';
+  static const String _select =
+      '*, bands!inner(name, status, cover_url), albums(title, cover_url)';
 
   @override
   Future<List<Song>> getLatestSongs({int limit = 50}) async {
@@ -42,9 +43,57 @@ class SupabaseSongRepository implements SongRepository {
 
   @override
   Future<Song> addSong(Song song, {String? albumId}) async {
+    String? resolvedAlbumId = albumId;
+
+    // Si tiene álbum especificado, vincular o crear en la tabla `albums`
+    if (resolvedAlbumId == null && song.album.trim().isNotEmpty) {
+      try {
+        final existing = await _client
+            .from('albums')
+            .select('id, cover_url')
+            .eq('band_id', song.artistId)
+            .eq('title', song.album.trim())
+            .maybeSingle();
+
+        if (existing != null) {
+          resolvedAlbumId = existing['id'] as String?;
+          if (song.coverUrl != null && existing['cover_url'] == null) {
+            await _client
+                .from('albums')
+                .update({'cover_url': song.coverUrl})
+                .eq('id', resolvedAlbumId!);
+          }
+        } else {
+          final insertedAlbum = await _client
+              .from('albums')
+              .insert({
+                'band_id': song.artistId,
+                'title': song.album.trim(),
+                if (song.coverUrl != null) 'cover_url': song.coverUrl,
+              })
+              .select('id')
+              .single();
+          resolvedAlbumId = insertedAlbum['id'] as String?;
+        }
+      } catch (e) {
+        // Si no se puede vincular álbum (por permisos o tabla), continuar sin bloquear el tema
+      }
+    }
+
+    // Si la banda no tiene portada y este tema tiene portada, asignarla a la banda
+    if (song.coverUrl != null) {
+      try {
+        await _client
+            .from('bands')
+            .update({'cover_url': song.coverUrl})
+            .eq('id', song.artistId)
+            .isFilter('cover_url', null);
+      } catch (_) {}
+    }
+
     final row = await _client
         .from('songs')
-        .insert(song.toInsertJson(albumId: albumId))
+        .insert(song.toInsertJson(albumId: resolvedAlbumId))
         .select(_select)
         .single();
     return songFromRow(_client, row);

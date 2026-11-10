@@ -58,6 +58,23 @@ class HomeViewModel extends ChangeNotifier {
     }).toList();
   }
 
+  List<Band> get filteredBands {
+    final query = _searchQuery.toLowerCase();
+    return _bands.where((band) {
+      final matchesQuery =
+          _searchQuery.isEmpty ||
+          band.name.toLowerCase().contains(query) ||
+          band.genre.toLowerCase().contains(query) ||
+          band.bio.toLowerCase().contains(query) ||
+          band.location.toLowerCase().contains(query);
+      final matchesGenre =
+          _selectedGenre == null ||
+          _selectedGenre == 'Todos' ||
+          band.genre.toLowerCase() == _selectedGenre!.toLowerCase();
+      return matchesQuery && matchesGenre;
+    }).toList();
+  }
+
   void setSearchQuery(String query) {
     _searchQuery = query.trim();
     _notify();

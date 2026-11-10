@@ -1,0 +1,28 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Ver Web Local (Inmediato)",
+      "type": "shell",
+      "command": ".\\ver_web_local.bat",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Iniciar con Supabase Real",
+      "type": "shell",
+      "command": ".\\iniciar.bat",
+      "problemMatcher": []
+    },
+    {
+      "label": "Iniciar Modo Demo Offline",
+      "type": "shell",
+      "command": ".\\iniciar_demo_offline.bat",
+      "problemMatcher": []
+    }
+  ]
+}
+

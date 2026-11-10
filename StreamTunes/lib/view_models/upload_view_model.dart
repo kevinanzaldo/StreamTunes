@@ -1,5 +1,6 @@
-import 'dart:typed_data';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../models/song.dart';
@@ -20,8 +21,10 @@ class UploadViewModel extends ChangeNotifier {
   bool _tieneCamara = false;
   bool _cargandoCapacidades = false;
   String? _fotoPortadaPath;
+  SelectedImageFile? _selectedImage;
   String? _nombreArchivoAudio;
   SelectedAudioFile? _selectedAudio;
+  Duration? _duracionAudio;
   int _songCount = 0;
   int _albumCount = 0;
   bool _cargandoCupos = false;
@@ -48,9 +51,11 @@ class UploadViewModel extends ChangeNotifier {
   bool get tieneCamara => _tieneCamara;
   bool get cargandoCapacidades => _cargandoCapacidades;
   String? get fotoPortadaPath => _fotoPortadaPath;
+  SelectedImageFile? get selectedImage => _selectedImage;
   String? get nombreArchivoAudio => _nombreArchivoAudio;
   SelectedAudioFile? get selectedAudio => _selectedAudio;
-  bool get tienePortada => _fotoPortadaPath != null;
+  Duration? get duracionAudio => _duracionAudio;
+  bool get tienePortada => _fotoPortadaPath != null || _selectedImage != null;
   bool get tieneAudio => _selectedAudio != null || _nombreArchivoAudio != null;
   bool get subiendo => _subiendo;
   String? get mensajeExito => _mensajeExito;
@@ -92,21 +97,40 @@ class UploadViewModel extends ChangeNotifier {
   }
 
   Future<void> tomarFotoConCamara() async {
-    final result = await _dispositivoCapacidades.tomarFotoConCamara();
+    final result = await _dispositivoCapacidades.tomarFotoArchivo();
     if (result != null) {
-      _fotoPortadaPath = result;
+      _selectedImage = result;
+      _fotoPortadaPath = result.name;
       _error = null;
       _notify();
     }
   }
 
   Future<void> seleccionarFotoDeGaleria() async {
-    final result = await _dispositivoCapacidades.seleccionarFotoDeGaleria();
+    final result = await _dispositivoCapacidades.seleccionarFotoArchivo();
     if (result != null) {
-      _fotoPortadaPath = result;
+      _selectedImage = result;
+      _fotoPortadaPath = result.name;
       _error = null;
       _notify();
     }
+  }
+
+  void seleccionarFotoManual(SelectedImageFile img) {
+    _selectedImage = img;
+    _fotoPortadaPath = img.name;
+    _error = null;
+    _notify();
+  }
+
+  void setDuracionAudio(Duration? dur) {
+    _duracionAudio = dur;
+    if (dur != null && dur.inSeconds < 60) {
+      _error = 'La canción debe durar al menos 1 minuto (60 segundos).';
+    } else {
+      _error = null;
+    }
+    _notify();
   }
 
   /// Abre el explorador de archivos para elegir un MP3/WAV/M4A real.
@@ -120,7 +144,12 @@ class UploadViewModel extends ChangeNotifier {
     }
   }
 
-  void seleccionarArchivoAudio(String fileName, {Uint8List? bytes, int? size}) {
+  void seleccionarArchivoAudio(
+    String fileName, {
+    Uint8List? bytes,
+    int? size,
+    Duration? duration,
+  }) {
     _nombreArchivoAudio = fileName;
     if (bytes != null) {
       _selectedAudio = SelectedAudioFile(
@@ -129,7 +158,16 @@ class UploadViewModel extends ChangeNotifier {
         bytes: bytes,
       );
     }
-    _error = null;
+    if (duration != null) {
+      _duracionAudio = duration;
+      if (duration.inSeconds < 60) {
+        _error = 'La canción debe durar al menos 1 minuto (60 segundos).';
+      } else {
+        _error = null;
+      }
+    } else {
+      _error = null;
+    }
     _notify();
   }
 
@@ -138,6 +176,8 @@ class UploadViewModel extends ChangeNotifier {
   /// El cupo (20 temas / 2 álbumes por banda) se valida acá para dar un
   /// mensaje claro, y la base de datos lo vuelve a exigir con triggers.
   ///
+  /// Exige una duración mínima de 1 minuto (60 s).
+  ///
   /// [artistId] y [artistName] son la banda activa de la sesión. Si no se pasan
   /// (pantalla usada sin sesión, como en los tests) se usa la banda de demo.
   Future<bool> publicarTema({
@@ -145,6 +185,7 @@ class UploadViewModel extends ChangeNotifier {
     String album = 'Demo',
     String? artistId,
     String? artistName,
+    Duration? duracion,
     bool subirEnSegundoPlano = true,
   }) async {
     final bandId = artistId ?? _demoBandId;
@@ -154,6 +195,14 @@ class UploadViewModel extends ChangeNotifier {
 
     if (titulo.trim().isEmpty) {
       _error = 'Ingresa el título del tema';
+      _notify();
+      return false;
+    }
+
+    final finalDuration = duracion ?? _duracionAudio;
+    if (finalDuration != null && finalDuration.inSeconds < 60) {
+      _error =
+          'La canción debe durar al menos 1 minuto (60 segundos). Duración actual: ${finalDuration.inSeconds} s.';
       _notify();
       return false;
     }
@@ -193,17 +242,38 @@ class UploadViewModel extends ChangeNotifier {
         );
       }
 
+      // Subida de imagen de portada (si seleccionó foto)
+      String? coverUrl;
+      if (_selectedImage != null && _selectedImage!.bytes.isNotEmpty) {
+        try {
+          final coverPath = await _storageRepository.uploadCover(
+            bandId: bandId,
+            bytes: _selectedImage!.bytes,
+            fileName: _selectedImage!.name,
+          );
+          coverUrl = _storageRepository.getCoverPublicUrl(coverPath);
+        } catch (e) {
+          debugPrint('Upload cover falló en Storage: $e. Usando data URI');
+          final b64 = base64Encode(_selectedImage!.bytes);
+          final mime = _selectedImage!.name.toLowerCase().endsWith('.png')
+              ? 'image/png'
+              : 'image/jpeg';
+          coverUrl = 'data:$mime;base64,$b64';
+        }
+      }
+
       final nuevaCancion = Song(
         id: songId,
         title: titulo.trim(),
         artistId: bandId,
         artistName: bandName,
         album: album.trim(),
-        duration: const Duration(minutes: 3, seconds: 20),
+        duration: finalDuration ?? const Duration(minutes: 3, seconds: 20),
         genre: 'Indie Rock',
         icon: Icons.music_note,
         gradientColors: const [Color(0xFF1DB954), Color(0xFF191414)],
         audioUrl: audioPath,
+        coverUrl: coverUrl,
         uploadedAt: DateTime.now(),
         playCount: 0,
       );
@@ -219,8 +289,10 @@ class UploadViewModel extends ChangeNotifier {
 
       _mensajeExito = 'Tema "$titulo" publicado con éxito.';
       _fotoPortadaPath = null;
+      _selectedImage = null;
       _nombreArchivoAudio = null;
       _selectedAudio = null;
+      _duracionAudio = null;
       _songCount++;
       return true;
     } catch (e) {

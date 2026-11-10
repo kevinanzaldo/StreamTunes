@@ -109,7 +109,9 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildContent(BuildContext context) {
     final bands = _viewModel.bands;
+    final filteredBands = _viewModel.filteredBands;
     final songs = _viewModel.filteredSongs;
+    final isSearching = _viewModel.searchQuery.isNotEmpty;
 
     return RefreshIndicator(
       onRefresh: _viewModel.refresh,
@@ -128,6 +130,12 @@ class _HomeViewState extends State<HomeView> {
                 hintText: 'Buscar canción o banda...',
                 hintStyle: const TextStyle(color: AppTheme.textMuted),
                 prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted),
+                suffixIcon: isSearching
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.white54, size: 18),
+                        onPressed: () => _viewModel.setSearchQuery(''),
+                      )
+                    : null,
                 filled: true,
                 fillColor: AppTheme.surfaceElevated,
                 contentPadding: const EdgeInsets.symmetric(
@@ -187,89 +195,211 @@ class _HomeViewState extends State<HomeView> {
 
           const SizedBox(height: 8),
 
-          // Acceso a bandas independientes
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text(
-              'Bandas',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          if (bands.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'Todavía no hay bandas publicadas.',
-                style: TextStyle(color: AppTheme.textMuted),
-              ),
-            )
-          else
-            SizedBox(
-              height: 50,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: bands.length,
-                itemBuilder: (context, index) {
-                  final band = bands[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ActionChip(
-                      avatar: const Icon(
-                        Icons.music_note,
-                        size: 16,
-                        color: AppTheme.primaryGreen,
-                      ),
-                      label: Text(band.name),
-                      labelStyle: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
-                      backgroundColor: AppTheme.surfaceElevated,
-                      side: const BorderSide(color: Colors.white24, width: 0.8),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => BandPublicView(band: band),
-                          ),
-                        );
-                      },
+          // Vista de BÚSQUEDA ACTIVA
+          if (isSearching) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.groups, color: AppTheme.primaryGreen, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Bandas (${filteredBands.length})',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
+            if (filteredBands.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'No se encontraron bandas con "${_viewModel.searchQuery}".',
+                  style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                ),
+              )
+            else
+              ...filteredBands.map((band) {
+                return ListTile(
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: band.coverUrl != null && band.coverUrl!.isNotEmpty
+                        ? Image.network(
+                            band.coverUrl!,
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                _bandDefaultAvatar(band),
+                          )
+                        : _bandDefaultAvatar(band),
+                  ),
+                  title: Text(
+                    band.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${band.genre} · ${band.location}',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: AppTheme.primaryGreen,
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BandPublicView(band: band),
+                      ),
+                    );
+                  },
+                );
+              }),
 
-          const Divider(color: Colors.white12, height: 24),
-
-          // RF-03: Últimos lanzamientos
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text(
-              'Últimos lanzamientos',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          if (songs.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'Todavía no hay lanzamientos.',
-                style: TextStyle(color: AppTheme.textMuted),
+              child: Divider(color: Colors.white12),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.music_note, color: AppTheme.primaryGreen, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Canciones (${songs.length})',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
-            )
-          else
-            ...songs.map((song) => SongTile(song: song)),
+            ),
+            if (songs.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'No se encontraron canciones con "${_viewModel.searchQuery}".',
+                  style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                ),
+              )
+            else
+              ...songs.map((song) => SongTile(song: song)),
+          ] else ...[
+            // Acceso a bandas independientes (Modo normal sin búsqueda)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Text(
+                'Bandas',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            if (bands.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'Todavía no hay bandas publicadas.',
+                  style: TextStyle(color: AppTheme.textMuted),
+                ),
+              )
+            else
+              SizedBox(
+                height: 50,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: bands.length,
+                  itemBuilder: (context, index) {
+                    final band = bands[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ActionChip(
+                        avatar: const Icon(
+                          Icons.music_note,
+                          size: 16,
+                          color: AppTheme.primaryGreen,
+                        ),
+                        label: Text(band.name),
+                        labelStyle: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                        backgroundColor: AppTheme.surfaceElevated,
+                        side: const BorderSide(color: Colors.white24, width: 0.8),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BandPublicView(band: band),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            const Divider(color: Colors.white12, height: 24),
+
+            // RF-03: Últimos lanzamientos
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Text(
+                'Últimos lanzamientos',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            if (songs.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'Todavía no hay lanzamientos.',
+                  style: TextStyle(color: AppTheme.textMuted),
+                ),
+              )
+            else
+              ...songs.map((song) => SongTile(song: song)),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _bandDefaultAvatar(dynamic band) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceElevated,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(
+        Icons.groups,
+        color: AppTheme.primaryGreen,
+        size: 24,
       ),
     );
   }

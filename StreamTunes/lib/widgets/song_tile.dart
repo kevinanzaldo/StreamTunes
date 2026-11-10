@@ -161,6 +161,26 @@ class SongTile extends StatelessWidget {
     }
   }
 
+  Widget _buildFallbackIcon(bool isPlaying) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: song.gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Icon(
+        song.icon,
+        color: isPlaying ? AppTheme.primaryGreen : Colors.white,
+        size: 22,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = ReproductorScope.of(context);
@@ -171,11 +191,25 @@ class SongTile extends StatelessWidget {
       builder: (context, _) {
         final isPlaying = player.currentSong?.id == song.id && player.isPlaying;
 
+        Widget leadingWidget;
+        if (song.coverUrl != null && song.coverUrl!.isNotEmpty) {
+          leadingWidget = ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.network(
+              song.coverUrl!,
+              width: 44,
+              height: 44,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildFallbackIcon(isPlaying),
+            ),
+          );
+        } else {
+          leadingWidget = _buildFallbackIcon(isPlaying);
+        }
+
         return ListTile(
-          leading: Icon(
-            song.icon,
-            color: isPlaying ? AppTheme.primaryGreen : Colors.white70,
-          ),
+          leading: leadingWidget,
           title: Text(
             song.title,
             style: TextStyle(

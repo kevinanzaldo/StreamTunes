@@ -4,6 +4,19 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
+/// Representa un archivo de imagen seleccionado para portada de tema o banda.
+class SelectedImageFile {
+  final String name;
+  final Uint8List bytes;
+  final String? path;
+
+  const SelectedImageFile({
+    required this.name,
+    required this.bytes,
+    this.path,
+  });
+}
+
 /// Representa un archivo de audio seleccionado por el usuario para su subida.
 class SelectedAudioFile {
   final String name;
@@ -65,13 +78,25 @@ class DispositivoCapacidades {
 
   /// Abre la cámara del dispositivo para capturar una imagen o foto de portada.
   Future<String?> tomarFotoConCamara() async {
+    final img = await tomarFotoArchivo();
+    return img?.name ?? img?.path;
+  }
+
+  /// Captura foto con cámara devolviendo nombre y bytes reales para subida.
+  Future<SelectedImageFile?> tomarFotoArchivo() async {
     try {
       final XFile? file = await _picker.pickImage(
         source: ImageSource.camera,
         imageQuality: 85,
         maxWidth: 1200,
       );
-      return file?.name ?? file?.path;
+      if (file == null) return null;
+      final bytes = await file.readAsBytes();
+      return SelectedImageFile(
+        name: file.name,
+        bytes: bytes,
+        path: file.path,
+      );
     } catch (e) {
       debugPrint('Error al capturar con cámara: $e');
       return null;
@@ -80,13 +105,25 @@ class DispositivoCapacidades {
 
   /// Abre la galería de imágenes del dispositivo.
   Future<String?> seleccionarFotoDeGaleria() async {
+    final img = await seleccionarFotoArchivo();
+    return img?.name ?? img?.path;
+  }
+
+  /// Selecciona imagen de galería con bytes reales para subida.
+  Future<SelectedImageFile?> seleccionarFotoArchivo() async {
     try {
       final XFile? file = await _picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 85,
         maxWidth: 1200,
       );
-      return file?.name ?? file?.path;
+      if (file == null) return null;
+      final bytes = await file.readAsBytes();
+      return SelectedImageFile(
+        name: file.name,
+        bytes: bytes,
+        path: file.path,
+      );
     } catch (e) {
       debugPrint('Error al seleccionar de galería: $e');
       return null;

@@ -297,19 +297,28 @@ class _UploadViewState extends State<UploadView> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: AppTheme.primaryGreen,
+                    Icon(
+                      _viewModel.duracionAudio != null &&
+                              _viewModel.duracionAudio!.inSeconds < 60
+                          ? Icons.warning_amber_rounded
+                          : Icons.check_circle,
+                      color: _viewModel.duracionAudio != null &&
+                              _viewModel.duracionAudio!.inSeconds < 60
+                          ? Colors.orangeAccent
+                          : AppTheme.primaryGreen,
                       size: 16,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         _viewModel.selectedAudio != null
-                            ? 'Audio listo: ${_viewModel.selectedAudio!.name} (${_viewModel.selectedAudio!.formattedSize})'
+                            ? 'Audio: ${_viewModel.selectedAudio!.name} (${_viewModel.selectedAudio!.formattedSize})'
                             : 'Audio: ${_viewModel.nombreArchivoAudio}',
-                        style: const TextStyle(
-                          color: AppTheme.primaryGreen,
+                        style: TextStyle(
+                          color: _viewModel.duracionAudio != null &&
+                                  _viewModel.duracionAudio!.inSeconds < 60
+                              ? Colors.orangeAccent
+                              : AppTheme.primaryGreen,
                           fontSize: 12,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -317,6 +326,22 @@ class _UploadViewState extends State<UploadView> {
                     ),
                   ],
                 ),
+                if (_viewModel.duracionAudio != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Duración: ${_viewModel.duracionAudio!.inMinutes}:${(_viewModel.duracionAudio!.inSeconds % 60).toString().padLeft(2, '0')} min'
+                    '${_viewModel.duracionAudio!.inSeconds < 60 ? " ❌ Mínimo requerido: 1 minuto (60 s)" : " ✅ Válido"}',
+                    style: TextStyle(
+                      color: _viewModel.duracionAudio!.inSeconds < 60
+                          ? Colors.redAccent
+                          : AppTheme.textSecondary,
+                      fontSize: 12,
+                      fontWeight: _viewModel.duracionAudio!.inSeconds < 60
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ],
               ],
               const SizedBox(height: 16),
 
@@ -369,26 +394,74 @@ class _UploadViewState extends State<UploadView> {
                 ),
 
               if (_viewModel.tienePortada) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: AppTheme.primaryGreen,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Portada: ${_viewModel.fotoPortadaPath}',
-                        style: const TextStyle(
-                          color: AppTheme.primaryGreen,
-                          fontSize: 12,
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceElevated,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    children: [
+                      if (_viewModel.selectedImage != null &&
+                          _viewModel.selectedImage!.bytes.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.memory(
+                            _viewModel.selectedImage!.bytes,
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      else
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.white10,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(Icons.image, color: Colors.white54),
                         ),
-                        overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  color: AppTheme.primaryGreen,
+                                  size: 16,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Portada lista',
+                                  style: TextStyle(
+                                    color: AppTheme.primaryGreen,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _viewModel.fotoPortadaPath ?? 'Foto seleccionada',
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
               const SizedBox(height: 20),

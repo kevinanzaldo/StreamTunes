@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 
 import '../models/song.dart';
 import '../repositories/interfaces/song_repository.dart';
@@ -18,12 +19,49 @@ class ReproductorViewModel extends ChangeNotifier {
   bool _repetir = false;
 
   Timer? _playbackTimer;
+  StreamSubscription? _playerStateSub;
+  StreamSubscription? _positionSub;
+  StreamSubscription? _durationSub;
   final AudioService? _audioService;
   final SongRepository? _songRepository;
   int _secondsListenedCurrentSong = 0;
 
   ReproductorViewModel({this._audioService, this._songRepository}) {
     _audioService?.initSession();
+    _initAudioListeners();
+  }
+
+  void _initAudioListeners() {
+    if (_audioService == null) return;
+    _durationSub = _audioService.durationStream.listen((dur) {
+      if (dur != null && dur > Duration.zero) {
+        _duracionTotal = dur;
+        notifyListeners();
+      }
+    });
+
+    _positionSub = _audioService.positionStream.listen((pos) {
+      if (_reproduciendo && _audioService.currentDuration != null) {
+        _posicionActual = pos;
+        notifyListeners();
+      }
+    });
+
+    _playerStateSub = _audioService.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        // El audio terminó exactamente donde corresponde: sin silencio al final!
+        if (_repetir) {
+          seekTo(Duration.zero);
+          resume();
+        } else if (_cola.length > 1) {
+          next();
+        } else {
+          pause();
+          _posicionActual = _duracionTotal;
+          notifyListeners();
+        }
+      }
+    });
   }
 
   // Getters públicos normalizados (Criterio C2)
@@ -92,6 +130,8 @@ class ReproductorViewModel extends ChangeNotifier {
 
     if (cancion.audioUrl != null && cancion.audioUrl!.isNotEmpty) {
       _audioService?.playUrl(cancion.audioUrl!);
+    } else {
+      _audioService?.stop();
     }
 
     _startTimer();
@@ -228,6 +268,9 @@ class ReproductorViewModel extends ChangeNotifier {
   void dispose() {
     _flushPlayEvent();
     _stopTimer();
+    _playerStateSub?.cancel();
+    _positionSub?.cancel();
+    _durationSub?.cancel();
     _audioService?.dispose();
     super.dispose();
   }

@@ -90,4 +90,35 @@ void main() {
       expect(repo.added, hasLength(1));
     },
   );
+
+  test(
+    'UploadViewModel: rechaza subir canciones con duración menor a 1 minuto',
+    () async {
+      final repo = _RecordingSongRepository();
+      final vm = UploadViewModel(songRepository: repo, autoInicializar: false);
+      addTearDown(vm.dispose);
+
+      // Intento de publicar tema de 45 segundos (< 60 s)
+      final ok = await vm.publicarTema(
+        titulo: 'Tema muy corto',
+        duracion: const Duration(seconds: 45),
+        subirEnSegundoPlano: false,
+      );
+
+      expect(ok, isFalse);
+      expect(vm.error, contains('al menos 1 minuto'));
+      expect(repo.added, isEmpty);
+
+      // Ahora con duración válida de 1 min 20 s (>= 60 s)
+      final okValido = await vm.publicarTema(
+        titulo: 'Tema de duración válida',
+        duracion: const Duration(minutes: 1, seconds: 20),
+        subirEnSegundoPlano: false,
+      );
+
+      expect(okValido, isTrue);
+      expect(repo.added, hasLength(1));
+      expect(repo.added.single.duration, const Duration(minutes: 1, seconds: 20));
+    },
+  );
 }

@@ -11,6 +11,7 @@ class Song {
   final IconData icon;
   final List<Color> gradientColors;
   final String? audioUrl;
+  final String? coverUrl;
   final int playCount;
   final DateTime uploadedAt;
 
@@ -25,6 +26,7 @@ class Song {
     required this.icon,
     required this.gradientColors,
     this.audioUrl,
+    this.coverUrl,
     this.playCount = 0,
     required this.uploadedAt,
   });
@@ -38,7 +40,15 @@ class Song {
     Map<String, dynamic> json, {
     String artistName = '',
     String album = '',
+    String? coverUrl,
   }) {
+    final albumData = json['albums'] as Map<String, dynamic>?;
+    final bandData = json['bands'] as Map<String, dynamic>?;
+    final resolvedCover = coverUrl ??
+        (json['cover_url'] as String?) ??
+        (albumData?['cover_url'] as String?) ??
+        (bandData?['cover_url'] as String?);
+
     return Song(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -50,8 +60,41 @@ class Song {
       icon: Icons.music_note,
       gradientColors: const [Color(0xFF4A00E0), Color(0xFF8E2DE2)],
       audioUrl: json['audio_path'] as String?,
+      coverUrl: resolvedCover,
       playCount: (json['play_count'] as num?)?.toInt() ?? 0,
       uploadedAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+
+  Song copyWith({
+    String? id,
+    String? title,
+    String? artistId,
+    String? artistName,
+    String? album,
+    Duration? duration,
+    String? genre,
+    IconData? icon,
+    List<Color>? gradientColors,
+    String? audioUrl,
+    String? coverUrl,
+    int? playCount,
+    DateTime? uploadedAt,
+  }) {
+    return Song(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      artistId: artistId ?? this.artistId,
+      artistName: artistName ?? this.artistName,
+      album: album ?? this.album,
+      duration: duration ?? this.duration,
+      genre: genre ?? this.genre,
+      icon: icon ?? this.icon,
+      gradientColors: gradientColors ?? this.gradientColors,
+      audioUrl: audioUrl ?? this.audioUrl,
+      coverUrl: coverUrl ?? this.coverUrl,
+      playCount: playCount ?? this.playCount,
+      uploadedAt: uploadedAt ?? this.uploadedAt,
     );
   }
 

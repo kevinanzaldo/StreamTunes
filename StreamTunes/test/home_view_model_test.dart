@@ -138,4 +138,33 @@ void main() {
       expect(find.text('Últimos lanzamientos'), findsOneWidget);
     },
   );
+
+  test(
+    'HomeViewModel: filteredBands busca bandas por nombre, género o bio',
+    () async {
+      final vm = _crearViewModel();
+      addTearDown(vm.dispose);
+      await vm.load();
+
+      expect(vm.bands, isNotEmpty);
+
+      // Búsqueda por nombre de banda
+      vm.setSearchQuery('Subterráneos');
+      expect(vm.filteredBands, hasLength(1));
+      expect(vm.filteredBands.single.name, 'Los Subterráneos');
+
+      // Búsqueda por género de banda
+      vm.setSearchQuery('Synthwave');
+      expect(vm.filteredBands, hasLength(1));
+      expect(vm.filteredBands.single.name, 'Banda Fractal');
+
+      // Búsqueda sin coincidencias
+      vm.setSearchQuery('NombreInexistente123');
+      expect(vm.filteredBands, isEmpty);
+
+      // Limpiar búsqueda
+      vm.setSearchQuery('');
+      expect(vm.filteredBands, equals(vm.bands));
+    },
+  );
 }
