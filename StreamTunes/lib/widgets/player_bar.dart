@@ -9,7 +9,8 @@ class PlayerBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reproductor = ReproductorScope.of(context);
+    final reproductor = ReproductorScope.maybeOf(context);
+    if (reproductor == null) return const SizedBox.shrink();
 
     return ListenableBuilder(
       listenable: reproductor,

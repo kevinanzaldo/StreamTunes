@@ -1,29 +1,45 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../models/song.dart';
-import '../repositories/music_repository.dart';
+import '../repositories/app_repositories.dart';
+import '../repositories/interfaces/song_repository.dart';
+import '../repositories/interfaces/storage_repository.dart';
 import '../services/background_upload_service.dart';
 import '../services/dispositivo_capacidades.dart';
 
 class UploadViewModel extends ChangeNotifier {
+  static const String _demoBandId = 'artist_1';
+  static const String _demoBandName = 'Los Subterráneos';
+
   final DispositivoCapacidades _dispositivoCapacidades;
-  final MusicRepository _musicRepository;
+  final SongRepository _songRepository;
+  final StorageRepository _storageRepository;
 
   bool _tieneCamara = false;
-  bool _cargandoCapacidades = true;
+  bool _cargandoCapacidades = false;
   String? _fotoPortadaPath;
   String? _nombreArchivoAudio;
+  SelectedAudioFile? _selectedAudio;
+  int _songCount = 0;
+  int _albumCount = 0;
+  bool _cargandoCupos = false;
   bool _subiendo = false;
   String? _mensajeExito;
   String? _error;
+  bool _disposed = false;
 
   UploadViewModel({
     DispositivoCapacidades? dispositivoCapacidades,
-    MusicRepository? musicRepository,
+    SongRepository? songRepository,
+    StorageRepository? storageRepository,
     bool autoInicializar = true,
   }) : _dispositivoCapacidades =
            dispositivoCapacidades ?? DispositivoCapacidades(),
-       _musicRepository = musicRepository ?? MusicRepository() {
+       _songRepository = songRepository ?? AppRepositories.create().songs,
+       _storageRepository =
+           storageRepository ?? AppRepositories.create().storage {
     if (autoInicializar) {
       inicializarCapacidades();
     }
@@ -33,20 +49,46 @@ class UploadViewModel extends ChangeNotifier {
   bool get cargandoCapacidades => _cargandoCapacidades;
   String? get fotoPortadaPath => _fotoPortadaPath;
   String? get nombreArchivoAudio => _nombreArchivoAudio;
+  SelectedAudioFile? get selectedAudio => _selectedAudio;
   bool get tienePortada => _fotoPortadaPath != null;
-  bool get tieneAudio => _nombreArchivoAudio != null;
+  bool get tieneAudio => _selectedAudio != null || _nombreArchivoAudio != null;
   bool get subiendo => _subiendo;
   String? get mensajeExito => _mensajeExito;
   String? get error => _error;
+  int get songCount => _songCount;
+  int get albumCount => _albumCount;
+  bool get cargandoCupos => _cargandoCupos;
+  bool get hasReachedSongLimit => _songCount >= 20;
+  bool get hasReachedAlbumLimit => _albumCount >= 2;
 
   /// Consulta asincrónica de capacidades del dispositivo (Bloque 3 - Criterios D1, F1).
   Future<void> inicializarCapacidades() async {
     _cargandoCapacidades = true;
-    notifyListeners();
+    _notify();
 
     _tieneCamara = await _dispositivoCapacidades.tieneCamara;
     _cargandoCapacidades = false;
-    notifyListeners();
+    _notify();
+  }
+
+  /// Carga el conteo actual de temas y álbumes para mostrar el cupo en pantalla.
+  Future<void> cargarCupos(String bandId) async {
+    _cargandoCupos = true;
+    _notify();
+    try {
+      final songs = await _songRepository.getSongsByBand(bandId);
+      _songCount = songs.length;
+      final albums = songs
+          .map((s) => s.album.trim().toLowerCase())
+          .where((a) => a.isNotEmpty)
+          .toSet();
+      _albumCount = albums.length;
+    } catch (_) {
+      // Ignorar fallo de precarga de cupos
+    } finally {
+      _cargandoCupos = false;
+      _notify();
+    }
   }
 
   Future<void> tomarFotoConCamara() async {
@@ -54,7 +96,7 @@ class UploadViewModel extends ChangeNotifier {
     if (result != null) {
       _fotoPortadaPath = result;
       _error = null;
-      notifyListeners();
+      _notify();
     }
   }
 
@@ -63,69 +105,110 @@ class UploadViewModel extends ChangeNotifier {
     if (result != null) {
       _fotoPortadaPath = result;
       _error = null;
-      notifyListeners();
+      _notify();
     }
   }
 
-  void seleccionarArchivoAudio(String fileName) {
-    _nombreArchivoAudio = fileName;
-    _error = null;
-    notifyListeners();
+  /// Abre el explorador de archivos para elegir un MP3/WAV/M4A real.
+  Future<void> seleccionarAudio() async {
+    final result = await _dispositivoCapacidades.seleccionarArchivoAudio();
+    if (result != null) {
+      _selectedAudio = result;
+      _nombreArchivoAudio = result.name;
+      _error = null;
+      _notify();
+    }
   }
 
+  void seleccionarArchivoAudio(String fileName, {Uint8List? bytes, int? size}) {
+    _nombreArchivoAudio = fileName;
+    if (bytes != null) {
+      _selectedAudio = SelectedAudioFile(
+        name: fileName,
+        size: size ?? bytes.length,
+        bytes: bytes,
+      );
+    }
+    _error = null;
+    _notify();
+  }
+
+  /// Publica un tema nuevo.
+  ///
+  /// El cupo (20 temas / 2 álbumes por banda) se valida acá para dar un
+  /// mensaje claro, y la base de datos lo vuelve a exigir con triggers.
+  ///
+  /// [artistId] y [artistName] son la banda activa de la sesión. Si no se pasan
+  /// (pantalla usada sin sesión, como en los tests) se usa la banda de demo.
   Future<bool> publicarTema({
     required String titulo,
     String album = 'Demo',
-    String artistId = 'artist_1',
-    String artistName = 'Los Subterráneos',
+    String? artistId,
+    String? artistName,
     bool subirEnSegundoPlano = true,
   }) async {
+    final bandId = artistId ?? _demoBandId;
+    final bandName = artistName ?? _demoBandName;
+    // Evita publicar dos veces si se toca el botón durante la validación.
+    if (_subiendo) return false;
+
     if (titulo.trim().isEmpty) {
       _error = 'Ingresa el título del tema';
-      notifyListeners();
-      return false;
-    }
-
-    // Validación de límites del MVP: máximo 20 temas o 2 álbumes por banda (Criterio A1)
-    final existingSongs = _musicRepository.getSongsByArtist(artistId);
-    if (existingSongs.length >= 20) {
-      _error = 'Límite de subida alcanzado: máximo 20 temas por banda.';
-      notifyListeners();
-      return false;
-    }
-
-    final existingAlbums = existingSongs
-        .map((s) => s.album.trim().toLowerCase())
-        .where((alb) => alb.isNotEmpty)
-        .toSet();
-
-    final targetAlbum = album.trim().toLowerCase();
-    if (!existingAlbums.contains(targetAlbum) && existingAlbums.length >= 2) {
-      _error = 'Límite de subida alcanzado: máximo 2 álbumes por banda.';
-      notifyListeners();
+      _notify();
       return false;
     }
 
     _subiendo = true;
     _error = null;
-    notifyListeners();
+    _notify();
 
     try {
+      // Validación de límites del MVP: máximo 20 temas o 2 álbumes por banda (Criterio A1)
+      final existingSongs = await _songRepository.getSongsByBand(bandId);
+      if (existingSongs.length >= 20) {
+        _error = 'Límite de subida alcanzado: máximo 20 temas por banda.';
+        return false;
+      }
+
+      final existingAlbums = existingSongs
+          .map((s) => s.album.trim().toLowerCase())
+          .where((alb) => alb.isNotEmpty)
+          .toSet();
+
+      final targetAlbum = album.trim().toLowerCase();
+      if (!existingAlbums.contains(targetAlbum) && existingAlbums.length >= 2) {
+        _error = 'Límite de subida alcanzado: máximo 2 álbumes por banda.';
+        return false;
+      }
+
+      final songId = 'song_${DateTime.now().millisecondsSinceEpoch}';
+      String audioPath = '$bandId/$songId.mp3';
+
+      if (_selectedAudio != null && _selectedAudio!.bytes != null) {
+        audioPath = await _storageRepository.uploadAudio(
+          bandId: bandId,
+          songId: songId,
+          bytes: _selectedAudio!.bytes!,
+          fileName: _selectedAudio!.name,
+        );
+      }
+
       final nuevaCancion = Song(
-        id: 'song_${DateTime.now().millisecondsSinceEpoch}',
+        id: songId,
         title: titulo.trim(),
-        artistId: artistId,
-        artistName: artistName,
+        artistId: bandId,
+        artistName: bandName,
         album: album.trim(),
         duration: const Duration(minutes: 3, seconds: 20),
         genre: 'Indie Rock',
         icon: Icons.music_note,
         gradientColors: const [Color(0xFF1DB954), Color(0xFF191414)],
+        audioUrl: audioPath,
         uploadedAt: DateTime.now(),
         playCount: 0,
       );
 
-      _musicRepository.addSong(nuevaCancion);
+      await _songRepository.addSong(nuevaCancion);
 
       if (subirEnSegundoPlano) {
         // Bloque 6: Programar subida en segundo plano con Workmanager y Notificaciones
@@ -137,20 +220,38 @@ class UploadViewModel extends ChangeNotifier {
       _mensajeExito = 'Tema "$titulo" publicado con éxito.';
       _fotoPortadaPath = null;
       _nombreArchivoAudio = null;
-      _subiendo = false;
-      notifyListeners();
+      _selectedAudio = null;
+      _songCount++;
       return true;
     } catch (e) {
-      _error = 'Error al subir tema: $e';
-      _subiendo = false;
-      notifyListeners();
+      final errStr = e.toString();
+      if (errStr.contains('limite_alcanzado') && errStr.contains('album')) {
+        _error = 'Límite de subida alcanzado: máximo 2 álbumes por banda.';
+      } else if (errStr.contains('limite_alcanzado')) {
+        _error = 'Límite de subida alcanzado: máximo 20 temas por banda.';
+      } else {
+        _error = 'Error al subir tema: $e';
+      }
       return false;
+    } finally {
+      _subiendo = false;
+      _notify();
     }
   }
 
   void limpiarMensajes() {
     _mensajeExito = null;
     _error = null;
-    notifyListeners();
+    _notify();
+  }
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../models/song.dart';
+import '../repositories/interfaces/song_repository.dart';
+import '../services/audio_service.dart';
 
 class ReproductorViewModel extends ChangeNotifier {
   Song? _cancionActual;
@@ -16,6 +18,13 @@ class ReproductorViewModel extends ChangeNotifier {
   bool _repetir = false;
 
   Timer? _playbackTimer;
+  final AudioService? _audioService;
+  final SongRepository? _songRepository;
+  int _secondsListenedCurrentSong = 0;
+
+  ReproductorViewModel({this._audioService, this._songRepository}) {
+    _audioService?.initSession();
+  }
 
   // Getters públicos normalizados (Criterio C2)
   Song? get currentSong => _cancionActual;
@@ -58,6 +67,7 @@ class ReproductorViewModel extends ChangeNotifier {
 
   // Métodos que modifican el estado (llaman notifyListeners internamente)
   void play(Song cancion, {List<Song>? cola}) {
+    _flushPlayEvent();
     _cancionActual = cancion;
     if (cola != null && cola.isNotEmpty) {
       _cola = List<Song>.from(cola);
@@ -78,6 +88,11 @@ class ReproductorViewModel extends ChangeNotifier {
     _duracionTotal = cancion.duration;
     _posicionActual = Duration.zero;
     _reproduciendo = true;
+    _secondsListenedCurrentSong = 0;
+
+    if (cancion.audioUrl != null && cancion.audioUrl!.isNotEmpty) {
+      _audioService?.playUrl(cancion.audioUrl!);
+    }
 
     _startTimer();
     notifyListeners();
@@ -87,6 +102,7 @@ class ReproductorViewModel extends ChangeNotifier {
     if (_reproduciendo) {
       _reproduciendo = false;
       _stopTimer();
+      _audioService?.pause();
       notifyListeners();
     }
   }
@@ -94,6 +110,7 @@ class ReproductorViewModel extends ChangeNotifier {
   void resume() {
     if (!_reproduciendo && _cancionActual != null) {
       _reproduciendo = true;
+      _audioService?.resume();
       _startTimer();
       notifyListeners();
     }
@@ -103,8 +120,10 @@ class ReproductorViewModel extends ChangeNotifier {
     if (_cancionActual == null) return;
     _reproduciendo = !_reproduciendo;
     if (_reproduciendo) {
+      _audioService?.resume();
       _startTimer();
     } else {
+      _audioService?.pause();
       _stopTimer();
     }
     notifyListeners();
@@ -122,6 +141,7 @@ class ReproductorViewModel extends ChangeNotifier {
     } else if (_posicionActual < Duration.zero) {
       _posicionActual = Duration.zero;
     }
+    _audioService?.seek(_posicionActual);
     notifyListeners();
   }
 
@@ -172,6 +192,8 @@ class ReproductorViewModel extends ChangeNotifier {
         return;
       }
 
+      _secondsListenedCurrentSong++;
+
       if (_posicionActual + const Duration(seconds: 1) >= _duracionTotal) {
         if (_repetir) {
           _posicionActual = Duration.zero;
@@ -186,6 +208,17 @@ class ReproductorViewModel extends ChangeNotifier {
     });
   }
 
+  void _flushPlayEvent() {
+    if (_cancionActual != null && _secondsListenedCurrentSong >= 5) {
+      _songRepository?.recordPlayEvent(
+        songId: _cancionActual!.id,
+        bandId: _cancionActual!.artistId,
+        secondsListened: _secondsListenedCurrentSong,
+      );
+    }
+    _secondsListenedCurrentSong = 0;
+  }
+
   void _stopTimer() {
     _playbackTimer?.cancel();
     _playbackTimer = null;
@@ -193,7 +226,9 @@ class ReproductorViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _flushPlayEvent();
     _stopTimer();
+    _audioService?.dispose();
     super.dispose();
   }
 }

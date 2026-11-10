@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../view_models/library_view_model.dart';
 import '../widgets/library_scope.dart';
 import '../widgets/song_tile.dart';
+import 'session_gate.dart';
 
 class LibraryView extends StatelessWidget {
   const LibraryView({super.key});
@@ -33,11 +34,14 @@ class LibraryView extends StatelessWidget {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                lib.createPlaylist(name);
-                Navigator.pop(ctx);
+              if (name.isEmpty) return;
+              final messenger = ScaffoldMessenger.of(context);
+              final ok = await lib.createPlaylist(name);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (!ok && lib.error != null) {
+                messenger.showSnackBar(SnackBar(content: Text(lib.error!)));
               }
             },
             style: ElevatedButton.styleFrom(
@@ -52,6 +56,14 @@ class LibraryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SessionGate(
+      title: 'Playlists',
+      message: 'Ingresá para armar tus playlists y ver tus donaciones.',
+      builder: _buildLibrary,
+    );
+  }
+
+  Widget _buildLibrary(BuildContext context) {
     final lib = LibraryScope.of(context);
 
     return Scaffold(
@@ -69,6 +81,29 @@ class LibraryView extends StatelessWidget {
         listenable: lib,
         builder: (context, _) {
           final playlists = lib.playlists;
+
+          if (lib.isLoading && playlists.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (lib.loadFailed && playlists.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    lib.error ?? 'No se pudo cargar tu biblioteca.',
+                    style: const TextStyle(color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: lib.load,
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.only(bottom: 96),

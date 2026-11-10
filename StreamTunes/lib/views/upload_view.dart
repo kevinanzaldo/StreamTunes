@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../models/band.dart';
 import '../theme/app_theme.dart';
 import '../view_models/upload_view_model.dart';
+import '../widgets/repositories_scope.dart';
+import '../widgets/session_scope.dart';
+import 'create_band_view.dart';
+import 'session_gate.dart';
 
 class UploadView extends StatefulWidget {
   final VoidCallback? onSongUploaded;
@@ -19,6 +24,7 @@ class _UploadViewState extends State<UploadView> {
   late final UploadViewModel _viewModel;
   bool _ownsViewModel = false;
   bool _subirEnSegundoPlano = true;
+  bool _loadedCupos = false;
 
   @override
   void initState() {
@@ -26,7 +32,11 @@ class _UploadViewState extends State<UploadView> {
     if (widget.viewModel != null) {
       _viewModel = widget.viewModel!;
     } else {
-      _viewModel = UploadViewModel();
+      final repos = RepositoriesScope.of(context);
+      _viewModel = UploadViewModel(
+        songRepository: repos.songs,
+        storageRepository: repos.storage,
+      );
       _ownsViewModel = true;
     }
   }
@@ -57,9 +67,13 @@ class _UploadViewState extends State<UploadView> {
     final title = _titleController.text.trim();
     final album = _albumController.text.trim();
 
+    final band = SessionScope.maybeRead(context)?.activeBand;
+
     final success = await _viewModel.publicarTema(
       titulo: title,
       album: album.isEmpty ? 'Demo' : album,
+      artistId: band?.id,
+      artistName: band?.name,
       subirEnSegundoPlano: _subirEnSegundoPlano,
     );
 
@@ -90,6 +104,59 @@ class _UploadViewState extends State<UploadView> {
 
   @override
   Widget build(BuildContext context) {
+    return SessionGate(
+      title: 'Subir Música',
+      message: 'Ingresá con tu cuenta para subir la música de tu banda.',
+      builder: _buildUpload,
+    );
+  }
+
+  /// Con sesión hace falta una banda aprobada; sin `SessionScope` (tests
+  /// sueltos) se muestra el formulario directamente.
+  Widget _buildUpload(BuildContext context) {
+    final session = SessionScope.maybeOf(context);
+    if (session == null) return _buildForm(context);
+
+    final band = session.activeBand;
+    if (band == null) {
+      return _UploadBlocked(
+        title: 'Subí tu música con una banda',
+        text: 'Para publicar temas primero tenés que crear tu banda.',
+        actionLabel: 'Crear mi banda',
+        onAction: () {
+          session.clearMessages();
+          Navigator.of(context).push<bool>(
+            MaterialPageRoute(builder: (_) => const CreateBandView()),
+          );
+        },
+      );
+    }
+    if (!band.isApproved) {
+      final estado = band.status == BandStatus.suspended
+          ? 'está suspendida y no puede publicar. Hablá con el Colectivo.'
+          : 'todavía no está aprobada. Cuando un moderador del Colectivo la '
+                'apruebe vas a poder subir música.';
+      return _UploadBlocked(
+        title: 'Tu banda no puede publicar todavía',
+        text: 'La banda "${band.name}" $estado',
+        actionLabel: 'Actualizar estado',
+        onAction: session.refreshMemberships,
+      );
+    }
+
+    if (!_loadedCupos) {
+      _loadedCupos = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _viewModel.cargarCupos(band.id);
+      });
+    }
+
+    return _buildForm(context);
+  }
+
+  Widget _buildForm(BuildContext context) {
+    final band = SessionScope.maybeOf(context)?.activeBand;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Subir Música')),
       body: ListenableBuilder(
@@ -98,16 +165,54 @@ class _UploadViewState extends State<UploadView> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
             children: [
+              if (band != null) ...[
+                Text(
+                  'Publicás como ${band.name}',
+                  style: const TextStyle(
+                    color: AppTheme.primaryGreen,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               // Aviso de límite del MVP
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: AppTheme.surfaceElevated,
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _viewModel.hasReachedSongLimit
+                        ? Colors.redAccent.withValues(alpha: 0.5)
+                        : Colors.transparent,
+                  ),
                 ),
-                child: const Text(
-                  'Límite inicial: máximo 2 álbumes o 20 temas por banda.\nFormato: MP3 a 192 kbps.',
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Límite inicial: máximo 2 álbumes o 20 temas por banda.\nFormato: MP3 a 192 kbps.',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    if (band != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _viewModel.cargandoCupos
+                            ? 'Consultando cupo disponible...'
+                            : 'Cupo utilizado: ${_viewModel.songCount}/20 temas · ${_viewModel.albumCount}/2 álbumes',
+                        style: TextStyle(
+                          color: _viewModel.hasReachedSongLimit
+                              ? Colors.redAccent
+                              : AppTheme.primaryGreen,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
@@ -164,7 +269,7 @@ class _UploadViewState extends State<UploadView> {
 
               // Archivo de audio
               const Text(
-                'Archivo de audio (.mp3)',
+                'Archivo de audio (.mp3, .m4a, .wav)',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -172,16 +277,47 @@ class _UploadViewState extends State<UploadView> {
               ),
               const SizedBox(height: 6),
               ElevatedButton.icon(
-                onPressed: () {
-                  _viewModel.seleccionarArchivoAudio('pista_master_192k.mp3');
-                },
+                onPressed: _viewModel.subiendo
+                    ? null
+                    : () async {
+                        await _viewModel.seleccionarAudio();
+                      },
                 icon: const Icon(Icons.audio_file),
-                label: Text(_viewModel.nombreArchivoAudio ?? 'Seleccionar MP3'),
+                label: Text(
+                  _viewModel.selectedAudio != null
+                      ? '${_viewModel.selectedAudio!.name} (${_viewModel.selectedAudio!.formattedSize})'
+                      : (_viewModel.nombreArchivoAudio ?? 'Seleccionar MP3'),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.surfaceElevated,
                   foregroundColor: Colors.white,
                 ),
               ),
+              if (_viewModel.tieneAudio) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle,
+                      color: AppTheme.primaryGreen,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _viewModel.selectedAudio != null
+                            ? 'Audio listo: ${_viewModel.selectedAudio!.name} (${_viewModel.selectedAudio!.formattedSize})'
+                            : 'Audio: ${_viewModel.nombreArchivoAudio}',
+                        style: const TextStyle(
+                          color: AppTheme.primaryGreen,
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
 
               // Foto de portada (Patrón Capabilities y Policies - Bloque 3)
@@ -307,6 +443,69 @@ class _UploadViewState extends State<UploadView> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Aviso cuando la persona todavía no puede publicar (sin banda, o con la
+/// banda pendiente o suspendida), con una acción para avanzar.
+class _UploadBlocked extends StatelessWidget {
+  const _UploadBlocked({
+    required this.title,
+    required this.text,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final String title;
+  final String text;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Subir Música')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.lock_outline,
+                size: 40,
+                color: AppTheme.textSecondary,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: onAction,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.black,
+                ),
+                child: Text(actionLabel),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

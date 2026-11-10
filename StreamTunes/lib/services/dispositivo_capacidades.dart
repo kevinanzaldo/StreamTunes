@@ -1,16 +1,42 @@
 import 'dart:isolate';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+
+/// Representa un archivo de audio seleccionado por el usuario para su subida.
+class SelectedAudioFile {
+  final String name;
+  final int size;
+  final Uint8List? bytes;
+  final String? path;
+
+  const SelectedAudioFile({
+    required this.name,
+    required this.size,
+    this.bytes,
+    this.path,
+  });
+
+  String get formattedSize {
+    if (size < 1024) return '$size B';
+    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
+    return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+}
 
 /// Servicio que encapsula las capacidades del dispositivo y políticas de plataforma.
 /// La UI nunca debe acceder a kIsWeb o Platform directamente; debe consultar este servicio.
 class DispositivoCapacidades {
   final ImagePicker _picker;
   final bool? forzarTieneCamara;
+  final Future<SelectedAudioFile?> Function()? audioPickerOverride;
 
-  DispositivoCapacidades({ImagePicker? picker, this.forzarTieneCamara})
-    : _picker = picker ?? ImagePicker();
+  DispositivoCapacidades({
+    ImagePicker? picker,
+    this.forzarTieneCamara,
+    this.audioPickerOverride,
+  }) : _picker = picker ?? ImagePicker();
 
   /// Getter asincrónico que determina si el dispositivo cuenta con cámara utilizable.
   Future<bool> get tieneCamara async {
@@ -77,6 +103,31 @@ class DispositivoCapacidades {
       return file?.name ?? file?.path;
     } catch (e) {
       debugPrint('Error al grabar historia con cámara: $e');
+      return null;
+    }
+  }
+
+  /// Selecciona un archivo de audio real (.mp3, .m4a, .wav) con FilePicker.
+  Future<SelectedAudioFile?> seleccionarArchivoAudio() async {
+    if (audioPickerOverride != null) {
+      return audioPickerOverride!();
+    }
+    try {
+      final file = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: ['mp3', 'm4a', 'wav'],
+      );
+      if (file == null) return null;
+      final bytes = await file.readAsBytes();
+      final size = (await file.length()) ?? bytes.length;
+      return SelectedAudioFile(
+        name: file.name,
+        size: size,
+        bytes: bytes,
+        path: file.path,
+      );
+    } catch (e) {
+      debugPrint('Error al seleccionar archivo de audio: $e');
       return null;
     }
   }

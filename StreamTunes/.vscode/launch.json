@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "StreamTunes (Supabase Real)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "args": [
+        "--dart-define=SUPABASE_URL=https://fajwcwabcdxetuffoiuh.supabase.co",
+        "--dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_Z-GmSTHbO64JDaBa3KXIzQ_9FuQ08rY"
+      ]
+    },
+    {
+      "name": "StreamTunes (Modo Demo Offline)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "args": [
+        "--dart-define=USE_MOCK=true"
+      ]
+    }
+  ]
+}
+

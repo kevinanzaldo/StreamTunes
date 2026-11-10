@@ -5,13 +5,16 @@ import '../models/artist.dart';
 import '../theme/app_theme.dart';
 import '../view_models/artist_detail_view_model.dart';
 import '../widgets/player_bar.dart';
+import '../widgets/repositories_scope.dart';
+import '../widgets/session_scope.dart';
 import '../widgets/song_tile.dart';
 
 class ArtistDetailView extends StatefulWidget {
   final Artist artist;
   final ArtistDetailViewModel? viewModel;
 
-  /// Si es null, se considera dueño solo al artista logueado (simulado).
+  /// Si es null se decide con la sesión: es dueño quien es miembro de la banda.
+  /// Sin `SessionScope` en el árbol (tests sueltos) se usa el artista simulado.
   final bool? esDuenoDelPerfil;
 
   const ArtistDetailView({
@@ -37,6 +40,7 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
     } else {
       _viewModel = ArtistDetailViewModel(
         artist: widget.artist,
+        songRepository: RepositoriesScope.of(context).songs,
         autoIniciarSimulacion: true,
       );
       _ownsViewModel = true;
@@ -63,8 +67,13 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
     super.dispose();
   }
 
-  bool get _esDuenoDelPerfil =>
-      widget.esDuenoDelPerfil ?? widget.artist.id == MockData.artistaLogueadoId;
+  bool get _esDuenoDelPerfil {
+    final explicito = widget.esDuenoDelPerfil;
+    if (explicito != null) return explicito;
+    final session = SessionScope.maybeOf(context);
+    if (session != null) return session.isMemberOf(widget.artist.id);
+    return widget.artist.id == MockData.artistaLogueadoId;
+  }
 
   void _mostrarDialogoDonar() {
     final controller = TextEditingController(text: '¡Gran música, sigan así!');
@@ -180,9 +189,6 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
 
   @override
   Widget build(BuildContext context) {
-    final artistSongs = MockData.getSongsByArtist(widget.artist.id)
-      ..sort((a, b) => b.playCount.compareTo(a.playCount));
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.artist.name),
@@ -363,9 +369,42 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  ...artistSongs.map((song) {
-                    return SongTile(song: song);
-                  }),
+                  if (_viewModel.cargandoTemas)
+                    const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppTheme.primaryGreen,
+                        ),
+                      ),
+                    )
+                  else if (_viewModel.errorTemas != null)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _viewModel.errorTemas!,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _viewModel.cargarTemas,
+                          child: const Text('Reintentar'),
+                        ),
+                      ],
+                    )
+                  else if (_viewModel.songs.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'Esta banda todavía no subió temas.',
+                        style: TextStyle(color: AppTheme.textMuted),
+                      ),
+                    )
+                  else
+                    ..._viewModel.songs.map((song) => SongTile(song: song)),
                   const SizedBox(height: 16),
 
                   // Biografía
