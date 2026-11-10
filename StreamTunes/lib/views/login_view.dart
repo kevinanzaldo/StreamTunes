@@ -138,7 +138,13 @@ class _LoginViewState extends State<LoginView> {
             ),
             onPressed: session.busy ? null : () => session.signInWithGoogle(),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 6),
+          const Text(
+            'Si aún no configuraste Google OAuth en Supabase, ingresá con tu email y contraseña.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+          ),
+          const SizedBox(height: 14),
           OutlinedButton(
             onPressed: session.busy ? null : _openRegister,
             child: const Text('Crear cuenta'),

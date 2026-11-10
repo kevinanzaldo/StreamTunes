@@ -124,6 +124,12 @@ class _RegisterViewState extends State<RegisterView> {
                     if (ok && mounted) nav.pop(true);
                   },
           ),
+          const SizedBox(height: 6),
+          const Text(
+            'Si aún no configuraste Google OAuth en Supabase, registrate con tu email arriba.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+          ),
         ],
       ),
     );

@@ -123,6 +123,25 @@ class UploadViewModel extends ChangeNotifier {
     _notify();
   }
 
+  /// Quita la foto seleccionada para dejar el tema sin foto propia
+  void quitarFoto() {
+    _selectedImage = null;
+    _fotoPortadaPath = null;
+    _notify();
+  }
+
+  /// Limpia todo el formulario para que la siguiente subida empiece vacía
+  void limpiarFormulario() {
+    _selectedImage = null;
+    _fotoPortadaPath = null;
+    _selectedAudio = null;
+    _nombreArchivoAudio = null;
+    _duracionAudio = null;
+    _error = null;
+    _mensajeExito = null;
+    _notify();
+  }
+
   void setDuracionAudio(Duration? dur) {
     _duracionAudio = dur;
     if (dur != null && dur.inSeconds < 60) {

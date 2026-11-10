@@ -71,7 +71,7 @@ class _UploadViewState extends State<UploadView> {
 
     final success = await _viewModel.publicarTema(
       titulo: title,
-      album: album.isEmpty ? (title.isNotEmpty ? 'Sencillo - $title' : 'Sencillo') : album,
+      album: album,
       artistId: band?.id,
       artistName: band?.name,
       subirEnSegundoPlano: _subirEnSegundoPlano,
@@ -91,6 +91,8 @@ class _UploadViewState extends State<UploadView> {
         ),
       );
       _titleController.clear();
+      _albumController.clear();
+      _viewModel.limpiarFormulario();
       widget.onSongUploaded?.call();
     } else if (_viewModel.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -244,7 +246,7 @@ class _UploadViewState extends State<UploadView> {
 
               // Álbum
               const Text(
-                'Nombre del Álbum / EP',
+                'Álbum / EP (opcional)',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -255,8 +257,10 @@ class _UploadViewState extends State<UploadView> {
                 controller: _albumController,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: 'Ej: Lado B',
+                  hintText: 'Dejar vacío si es un tema suelto (Sencillo)',
                   hintStyle: const TextStyle(color: AppTheme.textMuted),
+                  helperText: 'Si es un sencillo suelto, dejalo en blanco para que tenga su propia portada independiente.',
+                  helperStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
                   filled: true,
                   fillColor: AppTheme.surfaceElevated,
                   border: OutlineInputBorder(
@@ -459,6 +463,11 @@ class _UploadViewState extends State<UploadView> {
                             ),
                           ],
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        tooltip: 'Quitar foto',
+                        onPressed: _viewModel.quitarFoto,
                       ),
                     ],
                   ),

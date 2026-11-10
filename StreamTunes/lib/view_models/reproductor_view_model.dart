@@ -41,7 +41,7 @@ class ReproductorViewModel extends ChangeNotifier {
     });
 
     _positionSub = _audioService.positionStream.listen((pos) {
-      if (_reproduciendo && _audioService.currentDuration != null) {
+      if (_reproduciendo) {
         _posicionActual = pos;
         notifyListeners();
       }
@@ -234,16 +234,25 @@ class ReproductorViewModel extends ChangeNotifier {
 
       _secondsListenedCurrentSong++;
 
-      if (_posicionActual + const Duration(seconds: 1) >= _duracionTotal) {
-        if (_repetir) {
-          _posicionActual = Duration.zero;
-          notifyListeners();
+      // Solo avanzar la posición artificialmente si NO hay servicio de audio o el tema no tiene URL
+      // (modo demo/test offline donde no corre just_audio).
+      // Cuando hay audio real, positionStream es la única fuente de verdad fluida y sin saltos.
+      final hasRealAudio = _audioService != null &&
+          _cancionActual?.audioUrl != null &&
+          _cancionActual!.audioUrl!.isNotEmpty;
+
+      if (!hasRealAudio) {
+        if (_posicionActual + const Duration(seconds: 1) >= _duracionTotal) {
+          if (_repetir) {
+            _posicionActual = Duration.zero;
+            notifyListeners();
+          } else {
+            next();
+          }
         } else {
-          next();
+          _posicionActual += const Duration(seconds: 1);
+          notifyListeners();
         }
-      } else {
-        _posicionActual += const Duration(seconds: 1);
-        notifyListeners();
       }
     });
   }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../models/band.dart';
+import '../models/song.dart';
 import '../services/dispositivo_capacidades.dart';
 import '../theme/app_theme.dart';
 import '../view_models/band_dashboard_view_model.dart';
@@ -731,6 +732,230 @@ class _BandDashboardViewState extends State<BandDashboardView> {
     );
   }
 
+  Widget _buildArtistProfileCard(BuildContext context, Band band) {
+    return Card(
+      color: AppTheme.surfaceElevated,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(40),
+                  child: band.coverUrl != null && band.coverUrl!.isNotEmpty
+                      ? Image.network(
+                          band.coverUrl!,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                            width: 80,
+                            height: 80,
+                            color: AppTheme.primaryGreen.withAlpha(40),
+                            child: const Icon(
+                              Icons.groups,
+                              color: AppTheme.primaryGreen,
+                              size: 40,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          width: 80,
+                          height: 80,
+                          color: AppTheme.primaryGreen.withAlpha(40),
+                          child: const Icon(
+                            Icons.groups,
+                            color: AppTheme.primaryGreen,
+                            size: 40,
+                          ),
+                        ),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppTheme.primaryGreen,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: Colors.black,
+                      size: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'FOTO Y PERFIL DEL ARTISTA',
+                    style: TextStyle(
+                      color: AppTheme.primaryGreen,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    band.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (band.genre.isNotEmpty || band.location.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      [
+                        if (band.genre.isNotEmpty) band.genre,
+                        if (band.location.isNotEmpty) band.location,
+                      ].join(' • '),
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white24),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                    ),
+                    onPressed: () => _showEditBandDialog(context, band),
+                    icon: const Icon(Icons.edit, size: 14),
+                    label: const Text(
+                      'Cambiar foto y datos del artista',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlbumsSection(BandDashboardViewModel vm, Band band) {
+    final albumsMap = <String, List<Song>>{};
+    for (final song in vm.songs) {
+      if (song.album.trim().isNotEmpty && song.album.trim() != 'Sencillo') {
+        albumsMap.putIfAbsent(song.album.trim(), () => []).add(song);
+      }
+    }
+
+    if (albumsMap.isEmpty) {
+      return Card(
+        color: AppTheme.surfaceElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.album_outlined, color: AppTheme.textSecondary, size: 36),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Álbumes de la banda',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Tus canciones actuales están como sencillos independientes. Podés agruparlas en un álbum al subir nuevos temas.',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final entry in albumsMap.entries)
+          Card(
+            color: AppTheme.surfaceElevated,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.only(bottom: 10),
+            child: ListTile(
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: entry.value.first.coverUrl != null &&
+                        entry.value.first.coverUrl!.isNotEmpty
+                    ? Image.network(
+                        entry.value.first.coverUrl!,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Container(
+                          width: 48,
+                          height: 48,
+                          color: Colors.white12,
+                          child: const Icon(Icons.album, color: Colors.white54),
+                        ),
+                      )
+                    : Container(
+                        width: 48,
+                        height: 48,
+                        color: Colors.white12,
+                        child: const Icon(Icons.album, color: Colors.white54),
+                      ),
+              ),
+              title: Text(
+                entry.key,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                '${entry.value.length} tema(s) • Portada de álbum',
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildSongsList(BandDashboardViewModel vm) {
     if (vm.songs.isEmpty) {
       return Card(
@@ -927,6 +1152,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildStatusBanner(activeBand.status),
+                    _buildArtistProfileCard(context, activeBand),
                     // Tarjetas de resumen
                     if (isWide)
                       Row(
@@ -1014,7 +1240,18 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                     _buildTopListenersSection(_viewModel),
                     const SizedBox(height: 20),
                     const Text(
-                      'Temas publicados',
+                      'Álbumes de la banda',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildAlbumsSection(_viewModel, activeBand),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Canciones de la banda (con portada individual)',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
