@@ -8,6 +8,7 @@ import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
 import 'package:streamtunes/repositories/interfaces/song_repository.dart';
 import 'package:streamtunes/repositories/interfaces/storage_repository.dart';
+import 'package:streamtunes/repositories/music_repository.dart';
 import 'package:streamtunes/services/dispositivo_capacidades.dart';
 import 'package:streamtunes/view_models/band_dashboard_view_model.dart';
 import 'package:streamtunes/view_models/library_view_model.dart';
@@ -38,6 +39,7 @@ Band _testBand({
 
 class _MockSongRepo implements SongRepository {
   bool fail = false;
+  List<Map<String, dynamic>> playEvents = const [];
 
   @override
   Future<List<Song>> getLatestSongs({int limit = 50}) async => [];
@@ -72,6 +74,10 @@ class _MockSongRepo implements SongRepository {
     required int secondsListened,
     String? userId,
   }) async {}
+
+  @override
+  Future<List<Map<String, dynamic>>> getPlayEventsByBand(String bandId) async =>
+      playEvents;
 }
 
 void main() {
@@ -210,8 +216,74 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Top Oyentes:'), findsOneWidget);
+    expect(
+      find.text('Datos de demostración (benchmark Isolate 50k)'),
+      findsOneWidget,
+    );
+    expect(find.text('Top Oyentes (play_events reales):'), findsOneWidget);
+    expect(
+      find.text('Sin eventos de reproducción reales registrados todavía.'),
+      findsOneWidget,
+    );
     expect(find.text('Recalcular'), findsOneWidget);
+  });
+
+  test('MusicRepository.generateAndCalculateMetrics devuelve el mismo resultado para la misma semilla sin nombres inventados', () {
+    const input = MetricsComputeInput(
+      artistId: 'band_dash',
+      songTitlesById: {'s1': 'Tema Alfa', 's2': 'Tema Beta'},
+      count: 50000,
+      seed: 42,
+    );
+
+    final primera = MusicRepository.generateAndCalculateMetrics(input);
+    final segunda = MusicRepository.generateAndCalculateMetrics(input);
+
+    expect(primera, equals(segunda));
+    expect(primera.totalReproducciones, 50000);
+    expect(primera.topTemas, isNotEmpty);
+    expect(primera.reproduccionesPorDia, isNotEmpty);
+    expect(primera.rankingOyentes, isEmpty);
+    expect(primera.esSimulacion, isTrue);
+  });
+
+  test('BandDashboardViewModel.calculateMetrics agrega play_events reales por user_id dentro del Isolate', () async {
+    final repo = _MockSongRepo()
+      ..playEvents = [
+        {
+          'song_id': 's1',
+          'user_id': 'user_ana',
+          'seconds_listened': 240,
+          'profiles': {'display_name': 'Ana Oyente'},
+        },
+        {
+          'song_id': 's1',
+          'user_id': 'user_ana',
+          'seconds_listened': 180,
+          'profiles': {'display_name': 'Ana Oyente'},
+        },
+        {
+          'song_id': 's1',
+          'user_id': 'user_beto',
+          'seconds_listened': 120,
+          'profiles': {'display_name': 'Beto Oyente'},
+        },
+      ];
+
+    final vm = BandDashboardViewModel(
+      band: _testBand(),
+      songRepository: repo,
+      donationRepository: FakeDonationRepository(),
+    );
+    await vm.load();
+    await vm.calculateMetrics();
+
+    expect(vm.metrics, isNotNull);
+    expect(vm.metrics!.rankingOyentes, hasLength(2));
+    expect(vm.metrics!.rankingOyentes.first.nombre, 'Ana Oyente');
+    expect(vm.metrics!.rankingOyentes.first.minutos, 7);
+    expect(vm.metrics!.rankingOyentes.last.nombre, 'Beto Oyente');
+    expect(vm.metrics!.rankingOyentes.last.minutos, 2);
   });
 
   test('BandDashboardViewModel: updateBandProfile no guarda data URI si falla portada en Storage real', () async {

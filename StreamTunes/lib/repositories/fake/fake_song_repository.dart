@@ -36,6 +36,14 @@ class FakeSongRepository implements SongRepository {
       'band_id': bandId,
       'seconds_listened': secondsListened,
       'user_id': userId,
+      'created_at': DateTime.now().toIso8601String(),
     });
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getPlayEventsByBand(String bandId) async {
+    return List<Map<String, dynamic>>.unmodifiable(
+      recordedPlayEvents.where((event) => event['band_id'] == bandId),
+    );
   }
 }

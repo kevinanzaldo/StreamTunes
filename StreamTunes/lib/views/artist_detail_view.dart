@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_constants.dart';
 import '../data/mock_data.dart';
 import '../models/artist.dart';
 import '../theme/app_theme.dart';
@@ -77,7 +78,10 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
 
   void _mostrarDialogoDonar() {
     final controller = TextEditingController(text: '¡Gran música, sigan así!');
-    double montoSeleccionado = 1000.0;
+    double montoSeleccionado = kDonationAmountsArs.contains(1000.0)
+        ? 1000.0
+        : kDonationAmountsArs.first;
+    final maxLabel = formatArsAmount(kMaxDonationArs);
 
     showDialog(
       context: context,
@@ -86,7 +90,7 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
           return AlertDialog(
             backgroundColor: AppTheme.surfaceElevated,
             title: Text(
-              'Apoyar a ${widget.artist.name}',
+              'Apoyar a ${widget.artist.name} (demo)',
               style: const TextStyle(color: Colors.white),
             ),
             content: Column(
@@ -104,18 +108,18 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                       color: Colors.amberAccent.withValues(alpha: 0.4),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.info_outline,
                         color: Colors.amberAccent,
                         size: 16,
                       ),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Estamos con alta demanda - Topes de gasto activos (máx. \$5.000 ARS por donación)',
-                          style: TextStyle(
+                          'Simulación de demostración (modo demo local) · Topes de gasto (máx. $maxLabel ARS)',
+                          style: const TextStyle(
                             color: Colors.amberAccent,
                             fontSize: 11,
                           ),
@@ -131,10 +135,10 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
-                  children: [500.0, 1000.0, 2500.0, 5000.0].map((m) {
+                  children: kDonationAmountsArs.map((m) {
                     final isSelected = montoSeleccionado == m;
                     return ChoiceChip(
-                      label: Text('\$${m.toInt()}'),
+                      label: Text(formatArsAmount(m)),
                       selected: isSelected,
                       selectedColor: AppTheme.primaryGreen,
                       labelStyle: TextStyle(
@@ -167,7 +171,7 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.favorite, size: 16),
-                label: const Text('Donar en vivo'),
+                label: const Text('Donar (simulación demo)'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryGreen,
                   foregroundColor: Colors.black,
@@ -434,7 +438,7 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Banner visual de topes de gasto activos
+                        // Banner visual de simulación demo y tope de gasto
                         Container(
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.all(8),
@@ -445,18 +449,18 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                               color: Colors.amberAccent.withValues(alpha: 0.35),
                             ),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.info_outline,
                                 color: Colors.amberAccent,
                                 size: 16,
                               ),
-                              SizedBox(width: 6),
+                              const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  'Estamos con alta demanda - Topes de gasto activos (máx. \$5.000 ARS por donación)',
-                                  style: TextStyle(
+                                  'Simulación de demostración (modo demo local) · máx. ${formatArsAmount(kMaxDonationArs)} ARS por aporte',
+                                  style: const TextStyle(
                                     color: Colors.amberAccent,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w500,
@@ -503,7 +507,7 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                           child: ElevatedButton.icon(
                             icon: const Icon(Icons.favorite, size: 16),
                             label: const Text(
-                              'Enviar donación en vivo (Stream)',
+                              'Enviar donación simulada (demo)',
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryGreen,
@@ -626,53 +630,65 @@ class _ArtistDetailViewState extends State<ArtistDetailView> {
                                 ),
                               ),
                             ),
-                            if (_viewModel.metricas != null &&
-                                _viewModel
-                                    .metricas!
-                                    .rankingOyentes
-                                    .isNotEmpty) ...[
-                              const SizedBox(height: 10),
+                            if (_viewModel.metricas != null) ...[
+                              const SizedBox(height: 8),
                               const Text(
-                                '🏆 Ranking de Top Oyentes del Mes (Isolate):',
+                                'Datos de demostración (benchmark Isolate 50k)',
                                 style: TextStyle(
-                                  color: AppTheme.primaryGreen,
+                                  color: Colors.amberAccent,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 12,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              ..._viewModel.metricas!.rankingOyentes.map(
-                                (oyente) => Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 2.0,
+                              if (_viewModel
+                                  .metricas!
+                                  .rankingOyentes
+                                  .isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                const Text(
+                                  '🏆 Top Oyentes (play_events reales):',
+                                  style: TextStyle(
+                                    color: AppTheme.primaryGreen,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          '• ${oyente.nombre} (${oyente.ubicacion})',
+                                ),
+                                const SizedBox(height: 4),
+                                ..._viewModel.metricas!.rankingOyentes.map(
+                                  (oyente) => Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 2.0,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            oyente.ubicacion.isNotEmpty
+                                                ? '• ${oyente.nombre} (${oyente.ubicacion})'
+                                                : '• ${oyente.nombre}',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '${oyente.minutos} min',
                                           style: const TextStyle(
-                                            color: Colors.white70,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
                                             fontSize: 12,
                                           ),
-                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '${oyente.minutos} min',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ],
                           ] else
                             ElevatedButton.icon(

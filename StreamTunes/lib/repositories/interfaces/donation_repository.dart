@@ -16,6 +16,9 @@ abstract interface class DonationRepository {
   /// Consulta si el modo de "alta demanda / topes de gasto activos" está habilitado.
   Future<bool> isSpendCapActive();
 
+  /// Tope máximo permitido por donación (ARS), leído desde `app_config`.
+  Future<double> getMaxDonationArs();
+
   /// Registra una donación a una banda (`Donation.artistId` = id de la banda).
   /// La base valida el tope por donación y que la banda esté aprobada;
   /// esos errores llegan como excepción. Lanza si no hay sesión.

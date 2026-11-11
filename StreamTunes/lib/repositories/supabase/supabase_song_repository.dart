@@ -178,4 +178,16 @@ class SupabaseSongRepository implements SongRepository {
       'user_id': userId ?? _client.auth.currentUser?.id,
     });
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> getPlayEventsByBand(String bandId) async {
+    final rows = await _client
+        .from('play_events')
+        .select(
+          'song_id, user_id, seconds_listened, created_at, profiles(display_name)',
+        )
+        .eq('band_id', bandId)
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(rows);
+  }
 }

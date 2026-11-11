@@ -12,10 +12,10 @@ import '../repositories/music_repository.dart';
 import '../services/dispositivo_capacidades.dart';
 import '../services/donaciones_service.dart';
 
+/// ViewModel de la vista legacy `ArtistDetailView` (modo demo local).
+/// El flujo principal de la app usa `BandPublicView` + `BandPublicViewModel`.
 class ArtistDetailViewModel extends ChangeNotifier {
   final Artist artist;
-  // Solo para generar y procesar los 50.000 registros de la demo de Isolate.
-  final MusicRepository _musicRepository;
   final SongRepository _songRepository;
   final DonacionesService _donacionesService;
   final DispositivoCapacidades _dispositivoCapacidades;
@@ -43,15 +43,13 @@ class ArtistDetailViewModel extends ChangeNotifier {
 
   ArtistDetailViewModel({
     required this.artist,
-    MusicRepository? musicRepository,
     SongRepository? songRepository,
     DonacionesService? donacionesService,
     DispositivoCapacidades? dispositivoCapacidades,
     bool autoEscucharDonaciones = true,
     bool autoIniciarSimulacion = false,
     bool autoCargarTemas = true,
-  }) : _musicRepository = musicRepository ?? MusicRepository(),
-       _songRepository = songRepository ?? AppRepositories.create().songs,
+  }) : _songRepository = songRepository ?? AppRepositories.create().songs,
        _donacionesService = donacionesService ?? DonacionesService(),
        _dispositivoCapacidades =
            dispositivoCapacidades ?? DispositivoCapacidades() {
@@ -170,23 +168,34 @@ class ArtistDetailViewModel extends ChangeNotifier {
     _donacionesService.detenerSimulacion();
   }
 
-  /// Procesa 50.000 registros en segundo plano delegando la plataforma al servicio de capacidades (Criterio D3).
+  /// Genera y procesa 50.000 eventos en segundo plano dentro del Isolate
+  /// delegando la plataforma al servicio de capacidades (Criterio D3).
   Future<void> calcularEstadisticasIsolate() async {
     _calculandoEstadisticas = true;
     _errorEstadisticas = null;
     _notify();
 
     try {
-      final registros = _musicRepository.generatePlaybackRecords(
-        artist.id,
+      List<Map<String, dynamic>> playEvents = const [];
+      try {
+        playEvents = await _songRepository.getPlayEventsByBand(artist.id);
+      } catch (e) {
+        debugPrint('ArtistDetailViewModel: error cargando play_events: $e');
+      }
+
+      final input = MetricsComputeInput(
+        artistId: artist.id,
+        songTitlesById: {for (final s in _songs) s.id: s.title},
+        playEvents: playEvents,
         count: 50000,
+        seed: 42,
       );
 
       // Desacoplamiento de plataforma: DispositivoCapacidades resuelve Isolate.run o compute (Regla 3)
       final metricasCalculadas = await _dispositivoCapacidades
           .ejecutarComputoPesado(
-            MusicRepository.calculateAdvancedMetrics,
-            registros,
+            MusicRepository.generateAndCalculateMetrics,
+            input,
           );
 
       _metricas = metricasCalculadas;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_constants.dart';
 import '../models/band.dart';
 import '../models/donation.dart';
 import '../models/song.dart';
@@ -57,7 +58,11 @@ class _BandPublicViewState extends State<BandPublicView> {
 
   void _mostrarDialogoDonar() {
     final controller = TextEditingController(text: '¡Gran música, sigan así!');
-    double montoSeleccionado = 1000.0;
+    final amounts = _viewModel.donationAmounts;
+    final maxLabel = formatArsAmount(_viewModel.maxDonationArs);
+    double montoSeleccionado = amounts.contains(1000.0)
+        ? 1000.0
+        : amounts.first;
 
     showDialog(
       context: context,
@@ -83,18 +88,18 @@ class _BandPublicViewState extends State<BandPublicView> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.amber.withAlpha(100)),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.warning_amber_rounded,
                             color: Colors.amber,
                             size: 20,
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Estamos con alta demanda – topes de gasto activos (máx \$5.000).',
-                              style: TextStyle(
+                              'Estamos con alta demanda – topes de gasto activos (máx $maxLabel).',
+                              style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 11,
                               ),
@@ -112,18 +117,18 @@ class _BandPublicViewState extends State<BandPublicView> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.amber.withAlpha(100)),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.shield_outlined,
                             color: Colors.amber,
                             size: 20,
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Control de gasto: máximo \$5.000 por donación para cuidar la comunidad.',
-                              style: TextStyle(
+                              'Control de gasto: máximo $maxLabel por donación para cuidar la comunidad.',
+                              style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 11,
                               ),
@@ -142,10 +147,10 @@ class _BandPublicViewState extends State<BandPublicView> {
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
-                    children: [500.0, 1000.0, 2000.0, 5000.0].map((monto) {
+                    children: amounts.map((monto) {
                       final isSelected = montoSeleccionado == monto;
                       return ChoiceChip(
-                        label: Text('\$${monto.toInt()}'),
+                        label: Text(formatArsAmount(monto)),
                         selected: isSelected,
                         selectedColor: AppTheme.primaryGreen,
                         labelStyle: TextStyle(
@@ -416,11 +421,14 @@ class _BandPublicViewState extends State<BandPublicView> {
                                   color: Colors.grey[400],
                                 ),
                                 const SizedBox(width: 2),
-                                Text(
-                                  band.location,
-                                  style: TextStyle(
-                                    color: Colors.grey[400],
-                                    fontSize: 12,
+                                Flexible(
+                                  child: Text(
+                                    band.location,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                               ],

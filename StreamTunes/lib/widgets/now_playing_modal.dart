@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_data.dart';
 import '../theme/app_theme.dart';
 import '../view_models/reproductor_view_model.dart';
-import '../views/artist_detail_view.dart';
+import '../views/band_public_view.dart';
+import 'repositories_scope.dart';
 
 class NowPlayingModal extends StatelessWidget {
   final ReproductorViewModel reproductor;
@@ -114,20 +114,31 @@ class NowPlayingModal extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         InkWell(
-                          onTap: () {
-                            final artist = MockData.getArtistById(
-                              song.artistId,
+                          onTap: () async {
+                            final navigator = Navigator.of(context);
+                            final messenger = ScaffoldMessenger.maybeOf(
+                              context,
                             );
-                            if (artist != null) {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      ArtistDetailView(artist: artist),
+                            final band = await RepositoriesScope.of(context)
+                                .bands
+                                .getBandById(song.artistId);
+                            if (!context.mounted) return;
+                            if (band == null) {
+                              messenger?.showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'No se encontró el perfil público de la banda.',
+                                  ),
                                 ),
                               );
+                              return;
                             }
+                            navigator.pop();
+                            navigator.push(
+                              MaterialPageRoute(
+                                builder: (_) => BandPublicView(band: band),
+                              ),
+                            );
                           },
                           child: Row(
                             mainAxisSize: MainAxisSize.min,

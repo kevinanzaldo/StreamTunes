@@ -179,4 +179,39 @@ void main() {
     );
     expect(attempts, equals(1));
   });
+
+  test('SupabaseSongRepository.getPlayEventsByBand consulta play_events con perfiles', () async {
+    String? requestedPath;
+    String? requestedQuery;
+    final (_, _, repo) = await _startStubServer((req, body) async {
+      req.response.headers.contentType = ContentType.json;
+      if (req.uri.path.endsWith('/rest/v1/play_events') &&
+          req.method == 'GET') {
+        requestedPath = req.uri.path;
+        requestedQuery = req.uri.query;
+        req.response.statusCode = 200;
+        req.response.write(
+          jsonEncode([
+            {
+              'song_id': 's1',
+              'user_id': 'u1',
+              'seconds_listened': 180,
+              'created_at': '2026-04-01T12:00:00Z',
+              'profiles': {'display_name': 'Lucía'},
+            },
+          ]),
+        );
+        return;
+      }
+      req.response.statusCode = 404;
+      req.response.write('{}');
+    });
+
+    final events = await repo.getPlayEventsByBand('band_123');
+    expect(requestedPath, endsWith('/rest/v1/play_events'));
+    expect(requestedQuery, contains('band_id=eq.band_123'));
+    expect(events, hasLength(1));
+    expect(events.first['user_id'], 'u1');
+    expect(events.first['seconds_listened'], 180);
+  });
 }

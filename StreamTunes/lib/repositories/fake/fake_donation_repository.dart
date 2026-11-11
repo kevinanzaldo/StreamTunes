@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../config/app_constants.dart';
 import '../../data/mock_data.dart';
 import '../../models/donation.dart';
 import '../interfaces/donation_repository.dart';
@@ -11,9 +12,14 @@ class FakeDonationRepository implements DonationRepository {
   final StreamController<Donation> _controller =
       StreamController<Donation>.broadcast();
   bool _spendCapActive = false;
+  double _maxDonationArs = kMaxDonationArs;
 
   void setSpendCapActive(bool active) {
     _spendCapActive = active;
+  }
+
+  void setMaxDonationArs(double maxAmount) {
+    _maxDonationArs = maxAmount;
   }
 
   @override
@@ -34,6 +40,9 @@ class FakeDonationRepository implements DonationRepository {
 
   @override
   Future<bool> isSpendCapActive() async => _spendCapActive;
+
+  @override
+  Future<double> getMaxDonationArs() async => _maxDonationArs;
 
   @override
   Future<Donation> addDonation(Donation donation) async {

@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_constants.dart';
 import '../../models/donation.dart';
 import '../interfaces/donation_repository.dart';
 
@@ -63,8 +65,26 @@ class SupabaseDonationRepository implements DonationRepository {
       if (res != null) {
         return (res['value'] as num?) == 1;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error consultando spend_cap_active: $e');
+    }
     return false;
+  }
+
+  @override
+  Future<double> getMaxDonationArs() async {
+    try {
+      final res = await _client
+          .from('app_config')
+          .select('value')
+          .eq('key', 'max_donation_ars')
+          .maybeSingle();
+      final val = (res?['value'] as num?)?.toDouble();
+      if (val != null && val > 0) return val;
+    } catch (e) {
+      debugPrint('Error consultando max_donation_ars: $e');
+    }
+    return kMaxDonationArs;
   }
 
   @override

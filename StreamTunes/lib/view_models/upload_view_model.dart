@@ -367,10 +367,11 @@ class UploadViewModel extends ChangeNotifier {
       await _songRepository.addSong(nuevaCancion);
 
       if (subirEnSegundoPlano) {
-        // Bloque 6: Programar tarea en segundo plano / notificación nativa en móviles
+        // Bloque 6: Programar notificación post-publicación en segundo plano vía Workmanager
         _notificacionNativaProgramada =
             await BackgroundUploadService.programarSubidaEnSegundoPlano(
-              albumTitle: album,
+              songTitle: titulo.trim(),
+              albumTitle: album.trim(),
             );
       } else {
         _notificacionNativaProgramada = false;

@@ -31,6 +31,10 @@ class _RecordingSongRepository implements SongRepository {
     required int secondsListened,
     String? userId,
   }) async {}
+
+  @override
+  Future<List<Map<String, dynamic>>> getPlayEventsByBand(String bandId) async =>
+      const [];
 }
 
 /// Repositorio cuyo `addSong` siempre falla (por ejemplo, error de red o de RLS).

@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 
+import '../config/app_constants.dart';
 import '../data/mock_data.dart';
 import '../models/donation.dart';
 
+/// Servicio de demostración local (legacy): emite donaciones simuladas en
+/// memoria cada [interval]. El flujo real persiste vía `DonationRepository`.
 class DonacionesService {
   static final DonacionesService _instance = DonacionesService._internal();
   factory DonacionesService() => _instance;
@@ -49,8 +52,8 @@ class DonacionesService {
           ? MockData.getArtistById(targetArtistId) ?? MockData.artists.first
           : MockData.artists[random.nextInt(MockData.artists.length)];
 
-      final amounts = [500.0, 1000.0, 2000.0, 5000.0];
-      final amount = amounts[random.nextInt(amounts.length)];
+      final amount =
+          kDonationAmountsArs[random.nextInt(kDonationAmountsArs.length)];
       final message = sampleMessages[random.nextInt(sampleMessages.length)];
 
       final donation = Donation(

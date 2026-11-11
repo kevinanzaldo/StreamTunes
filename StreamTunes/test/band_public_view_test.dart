@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:streamtunes/config/app_constants.dart';
+import 'package:streamtunes/data/mock_data.dart';
 import 'package:streamtunes/models/band.dart';
 import 'package:streamtunes/models/song.dart';
+import 'package:streamtunes/repositories/app_repositories.dart';
+import 'package:streamtunes/repositories/fake/fake_auth_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_playlist_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_song_repository.dart';
 import 'package:streamtunes/repositories/interfaces/song_repository.dart';
 import 'package:streamtunes/view_models/band_public_view_model.dart';
@@ -10,6 +16,8 @@ import 'package:streamtunes/view_models/library_view_model.dart';
 import 'package:streamtunes/view_models/reproductor_view_model.dart';
 import 'package:streamtunes/views/band_public_view.dart';
 import 'package:streamtunes/widgets/library_scope.dart';
+import 'package:streamtunes/widgets/now_playing_modal.dart';
+import 'package:streamtunes/widgets/repositories_scope.dart';
 import 'package:streamtunes/widgets/reproductor_scope.dart';
 
 Band _testBand({String id = 'band_test', String name = 'Los Pruebas'}) {
@@ -77,6 +85,10 @@ class _FlakySongRepo implements SongRepository {
     required int secondsListened,
     String? userId,
   }) async {}
+
+  @override
+  Future<List<Map<String, dynamic>>> getPlayEventsByBand(String bandId) async =>
+      const [];
 }
 
 void main() {
@@ -132,6 +144,22 @@ void main() {
 
     final ok = await vm.donate(amount: 1500, message: '¡Fuerza!');
     expect(ok, isTrue);
+  });
+
+  test('BandPublicViewModel: respeta maxDonationArs y valida montos desde constante compartida', () async {
+    final donations = FakeDonationRepository()..setMaxDonationArs(2000);
+    final vm = BandPublicViewModel(
+      band: _testBand(),
+      songRepository: FakeSongRepository(),
+      donationRepository: donations,
+    );
+
+    await vm.load();
+    expect(vm.maxDonationArs, 2000);
+    expect(vm.donationAmounts, [500.0, 1000.0, 2000.0]);
+    expect(kDonationAmountsArs, [500.0, 1000.0, 2000.0, 5000.0]);
+    expect(await vm.donate(amount: 5000, message: 'Excede tope'), isFalse);
+    expect(await vm.donate(amount: 2000, message: 'Dentro de tope'), isTrue);
   });
 
   testWidgets('BandPublicView: muestra datos de la banda y temas', (
@@ -208,6 +236,51 @@ void main() {
 
       expect(find.byType(VerticalDivider), findsOneWidget);
       expect(find.text('Temas más escuchados'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'NowPlayingModal: tocar el nombre de la banda abre BandPublicView real',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final song = MockData.songs.first;
+      final repos = AppRepositories(
+        auth: FakeAuthRepository(),
+        songs: FakeSongRepository(),
+        bands: FakeBandRepository(),
+        playlists: FakePlaylistRepository(),
+        donations: FakeDonationRepository(),
+      );
+      final player = ReproductorViewModel()..play(song);
+      final library = LibraryViewModel();
+      addTearDown(player.dispose);
+      addTearDown(library.dispose);
+
+      await tester.pumpWidget(
+        RepositoriesScope(
+          repositories: repos,
+          child: ReproductorScope(
+            reproductor: player,
+            child: LibraryScope(
+              library: library,
+              child: MaterialApp(
+                home: Scaffold(body: NowPlayingModal(reproductor: player)),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.textContaining(song.artistName).first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BandPublicView), findsOneWidget);
+      player.pause();
     },
   );
 }

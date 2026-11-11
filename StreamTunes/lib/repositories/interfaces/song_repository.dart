@@ -18,4 +18,7 @@ abstract interface class SongRepository {
     required int secondsListened,
     String? userId,
   });
+
+  /// Eventos reales de reproducción registrados para una banda en `play_events`.
+  Future<List<Map<String, dynamic>>> getPlayEventsByBand(String bandId);
 }

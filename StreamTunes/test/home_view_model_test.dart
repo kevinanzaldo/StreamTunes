@@ -43,6 +43,10 @@ class _FlakySongRepository implements SongRepository {
     secondsListened: secondsListened,
     userId: userId,
   );
+
+  @override
+  Future<List<Map<String, dynamic>>> getPlayEventsByBand(String bandId) =>
+      _delegate.getPlayEventsByBand(bandId);
 }
 
 HomeViewModel _crearViewModel({SongRepository? songs}) {

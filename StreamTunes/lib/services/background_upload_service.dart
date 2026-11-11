@@ -19,15 +19,20 @@ void callbackDispatcher() {
       // Inicializar el plugin de notificaciones dentro de este isolate independiente (Criterio E2)
       await BackgroundUploadService.inicializarEnIsolate();
 
-      // Simular espera de 5 segundos de subida pesada en segundo plano (Bloque 6)
-      await Future.delayed(const Duration(seconds: 5));
-
-      final albumTitle = inputData?['albumTitle'] as String? ?? 'Álbum Indie';
+      // La subida del audio, portada y fila en Supabase ya finalizó en primer plano.
+      // Esta tarea de Workmanager corre en su isolate independiente cuando el sistema
+      // cumple las restricciones de red para disparar la notificación local veraz (Criterio E1/E2).
+      final songTitle = (inputData?['songTitle'] as String?)?.trim() ?? '';
+      final albumTitle = (inputData?['albumTitle'] as String?)?.trim() ?? '';
+      final notification = BackgroundUploadService.buildPublicationNotification(
+        songTitle: songTitle,
+        albumTitle: albumTitle,
+      );
 
       // Disparar notificación local usando flutter_local_notifications
       await BackgroundUploadService.mostrarNotificacion(
-        titulo: '¡Álbum publicado con éxito!',
-        cuerpo: 'Tu álbum "$albumTitle" ya está disponible en StreamTunes.',
+        titulo: notification.titulo,
+        cuerpo: notification.cuerpo,
       );
     }
     return Future.value(true);
@@ -178,14 +183,41 @@ class BackgroundUploadService {
     }
   }
 
+  /// Construye el título y cuerpo veraces para la notificación post-publicación.
+  static ({String titulo, String cuerpo}) buildPublicationNotification({
+    required String songTitle,
+    String albumTitle = '',
+  }) {
+    final cleanSong = songTitle.trim();
+    final cleanAlbum = albumTitle.trim();
+    final String body;
+    if (cleanSong.isNotEmpty && cleanAlbum.isNotEmpty) {
+      body =
+          '"$cleanSong" (álbum "$cleanAlbum") ya está disponible en StreamTunes.';
+    } else if (cleanSong.isNotEmpty) {
+      body = '"$cleanSong" ya está disponible en StreamTunes.';
+    } else if (cleanAlbum.isNotEmpty) {
+      body =
+          'Tu lanzamiento de "$cleanAlbum" ya está disponible en StreamTunes.';
+    } else {
+      body = 'Tu tema ya está disponible en StreamTunes.';
+    }
+    return (titulo: 'Tema publicado', cuerpo: body);
+  }
+
   /// Registra una tarea en segundo plano con Workmanager condicionada a red
   /// (`NetworkType.connected`) cuando la plataforma es móvil nativa.
+  /// La subida pesada real ocurre en primer plano; la tarea notifica al completar.
   /// Devuelve `true` si se programó en el sistema operativo o `false` si se
   /// debe depender del respaldo visual in-app.
   static Future<bool> programarSubidaEnSegundoPlano({
-    required String albumTitle,
+    required String songTitle,
+    String albumTitle = '',
   }) async {
     await inicializar();
+
+    final cleanSong = songTitle.trim();
+    final cleanAlbum = albumTitle.trim();
 
     if (soportaSegundoPlano) {
       try {
@@ -193,7 +225,10 @@ class BackgroundUploadService {
           'upload_${DateTime.now().millisecondsSinceEpoch}',
           backgroundUploadTaskKey,
           constraints: Constraints(networkType: NetworkType.connected),
-          inputData: <String, dynamic>{'albumTitle': albumTitle},
+          inputData: <String, dynamic>{
+            'songTitle': cleanSong,
+            'albumTitle': cleanAlbum,
+          },
         );
         return true;
       } catch (e) {
@@ -207,9 +242,13 @@ class BackgroundUploadService {
     }
 
     if (soportaNotificacionesNativas) {
+      final notification = buildPublicationNotification(
+        songTitle: cleanSong,
+        albumTitle: cleanAlbum,
+      );
       return mostrarNotificacion(
-        titulo: '¡Álbum publicado con éxito!',
-        cuerpo: 'Tu álbum "$albumTitle" ya está disponible en StreamTunes.',
+        titulo: notification.titulo,
+        cuerpo: notification.cuerpo,
       );
     }
 

@@ -49,6 +49,10 @@ class _RecordingSongRepository implements SongRepository {
     required int secondsListened,
     String? userId,
   }) async {}
+
+  @override
+  Future<List<Map<String, dynamic>>> getPlayEventsByBand(String bandId) async =>
+      const [];
 }
 
 /// Sesión de visitante (ya restaurada). Quien la necesita puede iniciar sesión.

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../config/app_constants.dart';
 import '../models/band.dart';
 import '../models/donation.dart';
 import '../models/song.dart';
@@ -25,6 +26,7 @@ class BandPublicViewModel extends ChangeNotifier {
   List<Song> _songs = const [];
   List<Donation> _recentDonations = const [];
   bool _spendCapActive = false;
+  double _maxDonationArs = kMaxDonationArs;
   Donation? _latestDonationAlert;
   StreamSubscription<Donation>? _donationSub;
   bool _disposed = false;
@@ -34,6 +36,15 @@ class BandPublicViewModel extends ChangeNotifier {
   List<Song> get songs => List.unmodifiable(_songs);
   List<Donation> get recentDonations => List.unmodifiable(_recentDonations);
   bool get spendCapActive => _spendCapActive;
+  double get maxDonationArs => _maxDonationArs;
+  List<double> get donationAmounts {
+    final filtered = kDonationAmountsArs
+        .where((amount) => amount <= _maxDonationArs)
+        .toList();
+    if (filtered.isNotEmpty) return filtered;
+    return [_maxDonationArs];
+  }
+
   Donation? get latestDonationAlert => _latestDonationAlert;
 
   void dismissAlert() {
@@ -53,9 +64,10 @@ class BandPublicViewModel extends ChangeNotifier {
         ..sort((a, b) => b.playCount.compareTo(a.playCount));
       _songs = sorted;
 
-      // Cargar donaciones y estado de tope de gastos
+      // Cargar donaciones, estado de tope de gastos y monto máximo desde app_config
       _recentDonations = await donationRepository.getBandDonations(band.id);
       _spendCapActive = await donationRepository.isSpendCapActive();
+      _maxDonationArs = await donationRepository.getMaxDonationArs();
 
       _setupRealtimeDonations();
       _error = null;
@@ -84,6 +96,9 @@ class BandPublicViewModel extends ChangeNotifier {
   }
 
   Future<bool> donate({required double amount, String? message}) async {
+    if (amount <= 0 || amount > _maxDonationArs) {
+      return false;
+    }
     try {
       await donationRepository.addDonation(
         Donation(

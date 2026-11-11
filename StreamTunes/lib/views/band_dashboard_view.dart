@@ -186,7 +186,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Cálculo de series pesadas (50.000 eventos de reproducción) ejecutado en un hilo separado sin congelar la pantalla.',
+              'Simulación de carga: generación y agregación de 50.000 eventos dentro del Isolate sin congelar la UI, junto al ranking real de play_events.',
               style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12,
@@ -218,7 +218,32 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (vm.metrics!.esSimulacion) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: Colors.amberAccent.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: const Text(
+                          'Datos de demostración (benchmark Isolate 50k)',
+                          style: TextStyle(
+                            color: Colors.amberAccent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
@@ -230,37 +255,89 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                           'Minutos totales',
                           '${vm.metrics!.totalMinutos}m',
                         ),
+                        _metricItem(
+                          'Días agregados',
+                          '${vm.metrics!.reproduccionesPorDia.length}',
+                        ),
                       ],
                     ),
-                    if (vm.metrics!.rankingOyentes.isNotEmpty) ...[
+                    if (vm.metrics!.topTemas.isNotEmpty) ...[
                       const Divider(color: Colors.white12, height: 20),
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Top Oyentes:',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      const Text(
+                        'Top temas agregados (Isolate):',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 6),
+                      for (final tema in vm.metrics!.topTemas.take(3))
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  tema.titulo,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Text(
+                                '${tema.reproducciones} plays (${tema.minutos}m)',
+                                style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                    const Divider(color: Colors.white12, height: 20),
+                    const Text(
+                      'Top Oyentes (play_events reales):',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (vm.metrics!.rankingOyentes.isEmpty)
+                      const Text(
+                        'Sin eventos de reproducción reales registrados todavía.',
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 12,
+                        ),
+                      )
+                    else
                       for (final o in vm.metrics!.rankingOyentes.take(3))
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 2),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                o.nombre,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
+                              Expanded(
+                                child: Text(
+                                  o.nombre,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               Text(
-                                '${o.minutos} min (${o.ubicacion})',
+                                o.ubicacion.isNotEmpty
+                                    ? '${o.minutos} min (${o.ubicacion})'
+                                    : '${o.minutos} min',
                                 style: const TextStyle(
                                   color: AppTheme.primaryGreen,
                                   fontSize: 11,
@@ -269,7 +346,6 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                             ],
                           ),
                         ),
-                    ],
                   ],
                 ),
               ),

@@ -24,10 +24,8 @@ class BandDashboardViewModel extends ChangeNotifier {
     required this.donationRepository,
     this.bandRepository,
     this.storageRepository,
-    MusicRepository? musicRepository,
     DispositivoCapacidades? dispositivoCapacidades,
-  }) : _musicRepository = musicRepository ?? MusicRepository(),
-       _dispositivoCapacidades =
+  }) : _dispositivoCapacidades =
            dispositivoCapacidades ?? DispositivoCapacidades();
 
   final Band band;
@@ -35,7 +33,6 @@ class BandDashboardViewModel extends ChangeNotifier {
   final DonationRepository donationRepository;
   final BandRepository? bandRepository;
   final StorageRepository? storageRepository;
-  final MusicRepository _musicRepository;
   final DispositivoCapacidades _dispositivoCapacidades;
 
   bool _isLoading = true;
@@ -167,20 +164,34 @@ class BandDashboardViewModel extends ChangeNotifier {
     }, onError: (_) {});
   }
 
-  /// Calcula 50.000 registros de métricas en segundo plano usando Isolate/compute (Criterio D3).
+  /// Genera y procesa 50.000 eventos sintéticos + eventos reales de `play_events`
+  /// íntegramente dentro de un Isolate/compute para no bloquear la UI (Criterio D3).
   Future<void> calculateMetrics() async {
     _isCalculatingStats = true;
     _statsError = null;
     _notify();
 
     try {
-      final records = _musicRepository.generatePlaybackRecords(
-        band.id,
+      List<Map<String, dynamic>> playEvents = const [];
+      try {
+        playEvents = await songRepository.getPlayEventsByBand(band.id);
+      } catch (e) {
+        debugPrint('No se pudieron cargar play_events para métricas: $e');
+      }
+
+      final songTitlesById = <String, String>{
+        for (final song in _songs) song.id: song.title,
+      };
+      final input = MetricsComputeInput(
+        artistId: band.id,
+        songTitlesById: songTitlesById,
+        playEvents: playEvents,
         count: 50000,
+        seed: 42,
       );
       final result = await _dispositivoCapacidades.ejecutarComputoPesado(
-        MusicRepository.calculateAdvancedMetrics,
-        records,
+        MusicRepository.generateAndCalculateMetrics,
+        input,
       );
       _metrics = result;
     } catch (e) {

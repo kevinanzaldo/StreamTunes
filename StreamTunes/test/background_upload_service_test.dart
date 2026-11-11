@@ -27,9 +27,29 @@ void main() {
 
     final scheduled =
         await BackgroundUploadService.programarSubidaEnSegundoPlano(
+          songTitle: 'Sencillo Demo',
           albumTitle: 'Álbum Demo',
         );
     expect(scheduled, isFalse);
+
+    final notifSingle = BackgroundUploadService.buildPublicationNotification(
+      songTitle: 'Canción Única',
+    );
+    expect(notifSingle.titulo, 'Tema publicado');
+    expect(
+      notifSingle.cuerpo,
+      '"Canción Única" ya está disponible en StreamTunes.',
+    );
+
+    final notifAlbum = BackgroundUploadService.buildPublicationNotification(
+      songTitle: 'Track 1',
+      albumTitle: 'Primer Disco',
+    );
+    expect(notifAlbum.titulo, 'Tema publicado');
+    expect(
+      notifAlbum.cuerpo,
+      '"Track 1" (álbum "Primer Disco") ya está disponible en StreamTunes.',
+    );
   });
 
   testWidgets(

@@ -547,7 +547,7 @@ class _UploadViewState extends State<UploadView> {
               ],
               const SizedBox(height: 20),
 
-              // Opción de subida en segundo plano con Workmanager (Bloque 6)
+              // Notificación post-publicación en segundo plano con Workmanager (Bloque 6)
               SwitchListTile(
                 value: _subirEnSegundoPlano,
                 onChanged: (val) {
@@ -557,7 +557,7 @@ class _UploadViewState extends State<UploadView> {
                 },
                 contentPadding: EdgeInsets.zero,
                 title: const Text(
-                  'Subir en segundo plano (Workmanager)',
+                  'Notificación en segundo plano (Workmanager)',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -565,7 +565,7 @@ class _UploadViewState extends State<UploadView> {
                   ),
                 ),
                 subtitle: const Text(
-                  'Continúa subiendo aunque minimices la app; requiere conexión.',
+                  'Programa el aviso nativo tras publicar el tema en Android/iOS (la subida ocurre en primer plano).',
                   style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                 ),
                 activeTrackColor: AppTheme.primaryGreen,
