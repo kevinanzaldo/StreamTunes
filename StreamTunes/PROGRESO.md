@@ -22,8 +22,9 @@ Leé STREAMTUNES_PLAN_MAESTRO.md y PROGRESO.md. Continuá desde la sección
 | 3 — Autenticación y sesión | 🟢 **Hecha y verificada** (format 70 archivos, analyze limpio, 59/59 tests) |
 | 4 — Perfiles separados y paneles | 🟢 **Hecha y verificada** (format 78 archivos, analyze limpio, 76/76 tests, `flutter build web --dart-define=USE_MOCK=true` OK) |
 | 5 — Funcionalidad real | 🟢 **Hecha y verificada** (format 84 archivos, analyze limpio, 84/84 tests, `flutter build web --dart-define=USE_MOCK=true` OK) |
-| 6 — Donaciones, estadísticas, moderación | 🟢 **Hecha y verificada** (format 90 archivos, analyze limpio, 89/89 tests, `flutter build web --dart-define=USE_MOCK=true` OK) |
-| 7 — QA, publicación y defensa | 🟢 **Hecha y verificada** (informe final, guion de demo G1, cotización a Kiwi, README actualizado, 89/89 tests, build web OK) |
+| 6 — Donaciones, estadísticas, moderación | 🟢 **Hecha y verificada** (cierre histórico con 89/89 tests) |
+| 7 — QA, publicación y defensa | 🟢 **Hecha y verificada** (informe final, guion G1, cotización, README) |
+| 8 — Correcciones post-revisión (P0–P3) | 🟢 **Hecha y verificada** (format 94 archivos, `flutter analyze` 0 issues, **110/110 tests**, PWA `build/web` recompilada) |
 
 ## Fase 1 — detalle de lo hecho
 Todo en `supabase/` (junto al `pubspec.yaml`):
@@ -181,13 +182,36 @@ flutter run -d chrome --dart-define=USE_MOCK=true   # demo sin internet
   - Plan de contingencia ante caídas de red documentado con `--dart-define=USE_MOCK=true`.
 - **Documentación y entrega (`README.md`):**
   - `README.md` actualizado con comandos de ejecución, cuentas demo preconfiguradas, arquitectura y guía de pruebas.
-- **Métricas finales:**
-  - `flutter test`: 89/89 tests pasando en verde (100%).
-  - `flutter analyze`: 0 issues (limpio).
-  - `dart format .`: 90 archivos formateados.
-  - `flutter build web --dart-define=USE_MOCK=true`: compilación web exitosa.
+- **Métricas al cierre histórico de la Fase 7:** 89/89 tests sobre 90 archivos formateados (ver Fase 8 abajo para el estado actual tras las correcciones P0–P3).
+
+## Fase 8 — Correcciones post-revisión (P0 → P3) (CERRADA Y VERIFICADA)
+
+- **Bloque P0 (Release y plataformas):**
+  - `android/app/src/main/AndroidManifest.xml`: agregado permiso `<uses-permission android:name="android.permission.INTERNET" />` para builds release.
+  - `android/app/build.gradle.kts` + `android/key.properties.example`: configurada firma `release` leyendo `android/key.properties` con caída segura a `debug` si falta el archivo.
+  - `BackgroundUploadService` + `UploadView`: detección de soporte nativo (`soportaNotificacionesNativas` / `soportaSegundoPlano`), retorno `Future<bool>` y respaldo visual `SnackBar` in-app garantizado tras publicar.
+- **Bloque P1 (Subida, UUID, límites y ciclo de vida):**
+  - `UploadViewModel` + `UploadView`: exigencia de archivo de audio real (excepción explícita opcional para fake), selector de género real (`Rock`, `Indie`, `Pop`, `Folk`, `Hip-Hop`, `Electrónica`, `Jazz`, `Otro`), error explícito si falta duración legible (sin inventar `3:20`) y portada sin fallback `data:image/...;base64` en Storage real.
+  - `SupabaseSongRepository`: propagación fiel de errores de negocio (`albums_limit` / RLS) sin `catch` vacíos.
+  - `Song` + `uuid`: ID generado como UUID v4 en el cliente para que coincida con `{band_id}/{song_id}.mp3` en Storage + migración manual `supabase/migrations/0006_song_id_and_cover_grants.sql`.
+  - `config/app_constants.dart`: constantes `kMaxSongsPerBand = 20`, `kMaxAlbumsPerBand = 2`, `kDonationAmountsArs`, `kMaxDonationArs = 5000`.
+  - `main.dart`: pausa de audio al pasar a `hidden` / `paused` sin pausar en `inactive`.
+- **Bloque P2 (Honestidad en Workmanager, Isolate, ranking y donaciones):**
+  - `BackgroundUploadService`: eliminado `Future.delayed(5 s)` simulado y comentario engañoso; notificación veraz `"Tema publicado"` con `songTitle` / `albumTitle` vía `inputData`.
+  - `MusicRepository` + `BandDashboardViewModel`: generación determinística (50.000 eventos) + agregación por tema/día movidas íntegramente dentro del `Isolate` / `compute`; ranking real de oyentes agregado por `user_id` desde `SongRepository.getPlayEventsByBand` (sin nombres inventados; estado vacío si no hay eventos).
+  - Unificación de montos/tope (`app_config` `max_donation_ars` vía `DonationRepository.getMaxDonationArs`), migración de `NowPlayingModal` hacia `BandPublicView`, y etiquetado claro como demo en la vista legacy `ArtistDetailView` / `DonacionesService`.
+- **Bloque P3 (Credenciales, limpieza de repo y documentación):**
+  - Credenciales de Supabase movidas a `env.json` (`--dart-define-from-file=env.json`) con plantilla `env.example.json` y verificación en `iniciar.bat` / `.vscode/launch.json`.
+  - Eliminada carpeta `.idea/` (y `changeNotifier_Ejercicio.iml` heredado) del repositorio git; conservado `build/web/` recompilado para `ver_web_local.bat`.
+- **Métricas actuales verificadas:**
+  - `flutter test`: **110/110** tests pasando (100%).
+  - `flutter analyze`: **0 issues** (limpio).
+  - `dart format .`: **94 archivos** formateados.
+  - `flutter build web --dart-define=USE_MOCK=true`: compilación PWA actualizada en `build/web/`.
 
 ## Registro de cambios (más reciente arriba)
+
+- **2026-11-11** — Fase 8 CERRADA Y VERIFICADA (bloques P0–P3). **110/110** tests en verde, `flutter analyze` sin issues, **94** archivos formateados, credenciales retiradas a `env.json` (`env.example.json`), `.idea/` eliminada del repo, PWA recompilada y documentación actualizada con criterios F1/F2 y limitaciones reales.
 
 - **2026-11-09** — Fase 7 CERRADA Y VERIFICADA. Creado `INFORME_FINAL_Y_DEFENSA.md` con mapeo de grilla EGI, guion de demo y cotización de mantenimiento. `README.md` actualizado. 89/89 tests pasando y build web OK. PROYECTO LISTO PARA DEFENSA.
 
@@ -227,7 +251,7 @@ flutter run -d chrome --dart-define=USE_MOCK=true   # demo sin internet
 - **2026-11-09** — Se crea este archivo. Se inicia la Fase 1.
 
 ## PRÓXIMO PASO
-1. **Entrega y Defensa Oral del Proyecto:**
-   - Realizar la demostración en vivo siguiendo el guion cronológico de 10 minutos detallado en `INFORME_FINAL_Y_DEFENSA.md`.
-   - Utilizar las credenciales de prueba preconfiguradas (`admin@`, `ana@`, `beto@`, `caro@`).
-   - Mantener el comando `flutter run -d chrome --dart-define=USE_MOCK=true` como respaldo de contingencia si no hay internet en el aula.
+1. **Validación manual y defensa oral del proyecto:**
+   - Aplicar manualmente `supabase/migrations/0006_song_id_and_cover_grants.sql` en el SQL Editor del proyecto Supabase destino y revisar las cuentas demo / clave publishable del proyecto real.
+   - Copiar `env.example.json` como `env.json` (y `android/key.properties.example` como `android/key.properties` con keystore propia si se firma APK en otra máquina con SDK Android alineado) y completar la tabla **"Evidencia de dispositivo real"** en `INFORME_FINAL_Y_DEFENSA.md`.
+   - Realizar la demostración en vivo siguiendo el guion de `INFORME_FINAL_Y_DEFENSA.md`, con `iniciar_demo_offline.bat` (`flutter run -d chrome --dart-define=USE_MOCK=true`) o `ver_web_local.bat` como respaldo.

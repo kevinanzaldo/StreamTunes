@@ -1,14 +1,16 @@
-/// Configuración por entorno. Los valores se pasan con `--dart-define`:
+/// Configuración por entorno. Podés pasar un archivo local `env.json`
+/// (copiado desde `env.example.json`, ignorado por Git) o `--dart-define`:
 ///
 /// ```
+/// flutter run -d chrome --dart-define-from-file=env.json
 /// flutter run -d chrome \
-///   --dart-define=SUPABASE_URL=https://xxxx.supabase.co \
-///   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+///   --dart-define=SUPABASE_URL=https://TU-PROYECTO.supabase.co \
+///   --dart-define=SUPABASE_PUBLISHABLE_KEY=TU_PUBLISHABLE_KEY
 /// flutter run -d chrome --dart-define=USE_MOCK=true   # demo sin internet
 /// ```
 ///
 /// `SUPABASE_ANON_KEY` sigue funcionando como nombre alternativo (clave legacy).
-/// Nunca commitear claves ni usar la `service_role` / secret key en la app.
+/// Nunca commitear `env.json` ni claves, ni usar `service_role` en la app.
 class AppConfig {
   const AppConfig._();
 

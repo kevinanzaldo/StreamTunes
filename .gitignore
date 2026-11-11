@@ -4,6 +4,13 @@
 *.iws
 *.ipr
 
+# Environment and signing secrets
+env.json
+key.properties
+android/key.properties
+*.jks
+*.keystore
+
 # OS generated
 .DS_Store
 Thumbs.db
