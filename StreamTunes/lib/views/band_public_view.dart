@@ -349,15 +349,15 @@ class _BandPublicViewState extends State<BandPublicView> {
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                               CircleAvatar(
-                            radius: 36,
-                            backgroundColor:
-                                AppTheme.primaryGreen.withAlpha(40),
-                            child: const Icon(
-                              Icons.groups,
-                              size: 36,
-                              color: AppTheme.primaryGreen,
-                            ),
-                          ),
+                                radius: 36,
+                                backgroundColor: AppTheme.primaryGreen
+                                    .withAlpha(40),
+                                child: const Icon(
+                                  Icons.groups,
+                                  size: 36,
+                                  color: AppTheme.primaryGreen,
+                                ),
+                              ),
                         )
                       : CircleAvatar(
                           radius: 36,

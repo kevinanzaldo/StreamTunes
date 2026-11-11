@@ -237,7 +237,8 @@ class ReproductorViewModel extends ChangeNotifier {
       // Solo avanzar la posición artificialmente si NO hay servicio de audio o el tema no tiene URL
       // (modo demo/test offline donde no corre just_audio).
       // Cuando hay audio real, positionStream es la única fuente de verdad fluida y sin saltos.
-      final hasRealAudio = _audioService != null &&
+      final hasRealAudio =
+          _audioService != null &&
           _cancionActual?.audioUrl != null &&
           _cancionActual!.audioUrl!.isNotEmpty;
 

@@ -29,6 +29,7 @@ class UploadViewModel extends ChangeNotifier {
   int _albumCount = 0;
   bool _cargandoCupos = false;
   bool _subiendo = false;
+  bool _notificacionNativaProgramada = false;
   String? _mensajeExito;
   String? _error;
   bool _disposed = false;
@@ -58,6 +59,7 @@ class UploadViewModel extends ChangeNotifier {
   bool get tienePortada => _fotoPortadaPath != null || _selectedImage != null;
   bool get tieneAudio => _selectedAudio != null || _nombreArchivoAudio != null;
   bool get subiendo => _subiendo;
+  bool get notificacionNativaProgramada => _notificacionNativaProgramada;
   String? get mensajeExito => _mensajeExito;
   String? get error => _error;
   int get songCount => _songCount;
@@ -137,6 +139,7 @@ class UploadViewModel extends ChangeNotifier {
     _selectedAudio = null;
     _nombreArchivoAudio = null;
     _duracionAudio = null;
+    _notificacionNativaProgramada = false;
     _error = null;
     _mensajeExito = null;
     _notify();
@@ -227,6 +230,7 @@ class UploadViewModel extends ChangeNotifier {
     }
 
     _subiendo = true;
+    _notificacionNativaProgramada = false;
     _error = null;
     _notify();
 
@@ -300,10 +304,13 @@ class UploadViewModel extends ChangeNotifier {
       await _songRepository.addSong(nuevaCancion);
 
       if (subirEnSegundoPlano) {
-        // Bloque 6: Programar subida en segundo plano con Workmanager y Notificaciones
-        await BackgroundUploadService.programarSubidaEnSegundoPlano(
-          albumTitle: album,
-        );
+        // Bloque 6: Programar tarea en segundo plano / notificación nativa en móviles
+        _notificacionNativaProgramada =
+            await BackgroundUploadService.programarSubidaEnSegundoPlano(
+              albumTitle: album,
+            );
+      } else {
+        _notificacionNativaProgramada = false;
       }
 
       _mensajeExito = 'Tema "$titulo" publicado con éxito.';

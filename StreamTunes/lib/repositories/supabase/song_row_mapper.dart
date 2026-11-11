@@ -17,8 +17,8 @@ Song songFromRow(SupabaseClient client, Map<String, dynamic> row) {
   final rawCover = (songCover != null && songCover.isNotEmpty)
       ? songCover
       : (albumCover != null && albumCover.isNotEmpty)
-          ? albumCover
-          : null;
+      ? albumCover
+      : null;
   String? resolvedCover;
   if (rawCover != null && rawCover.isNotEmpty) {
     if (rawCover.startsWith('http://') ||

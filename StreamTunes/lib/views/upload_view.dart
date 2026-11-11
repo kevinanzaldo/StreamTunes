@@ -80,11 +80,13 @@ class _UploadViewState extends State<UploadView> {
     if (!mounted) return;
 
     if (success) {
+      final hasNativeNotification =
+          _subirEnSegundoPlano && _viewModel.notificacionNativaProgramada;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _subirEnSegundoPlano
-                ? 'Tema "$title" enviado. Se subirá en segundo plano con conexión.'
+            hasNativeNotification
+                ? 'Tema "$title" publicado con éxito. Se programó la notificación del sistema.'
                 : 'Tema "$title" publicado con éxito.',
           ),
           backgroundColor: AppTheme.primaryGreen,
@@ -260,7 +262,10 @@ class _UploadViewState extends State<UploadView> {
                   hintText: 'Dejar vacío si es un tema suelto (Sencillo)',
                   hintStyle: const TextStyle(color: AppTheme.textMuted),
                   helperText: 'Si es un sencillo suelto, dejalo en blanco para que tenga su propia portada independiente.',
-                  helperStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                  helperStyle: const TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                  ),
                   filled: true,
                   fillColor: AppTheme.surfaceElevated,
                   border: OutlineInputBorder(
@@ -306,7 +311,8 @@ class _UploadViewState extends State<UploadView> {
                               _viewModel.duracionAudio!.inSeconds < 60
                           ? Icons.warning_amber_rounded
                           : Icons.check_circle,
-                      color: _viewModel.duracionAudio != null &&
+                      color:
+                          _viewModel.duracionAudio != null &&
                               _viewModel.duracionAudio!.inSeconds < 60
                           ? Colors.orangeAccent
                           : AppTheme.primaryGreen,
@@ -319,7 +325,8 @@ class _UploadViewState extends State<UploadView> {
                             ? 'Audio: ${_viewModel.selectedAudio!.name} (${_viewModel.selectedAudio!.formattedSize})'
                             : 'Audio: ${_viewModel.nombreArchivoAudio}',
                         style: TextStyle(
-                          color: _viewModel.duracionAudio != null &&
+                          color:
+                              _viewModel.duracionAudio != null &&
                                   _viewModel.duracionAudio!.inSeconds < 60
                               ? Colors.orangeAccent
                               : AppTheme.primaryGreen,
@@ -465,7 +472,10 @@ class _UploadViewState extends State<UploadView> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.redAccent,
+                        ),
                         tooltip: 'Quitar foto',
                         onPressed: _viewModel.quitarFoto,
                       ),

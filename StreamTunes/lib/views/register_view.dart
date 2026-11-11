@@ -91,7 +91,10 @@ class _RegisterViewState extends State<RegisterView> {
                   padding: EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
                     'o registrate con',
-                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
                 Expanded(child: Divider(color: Colors.white24)),

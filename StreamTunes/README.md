@@ -32,6 +32,34 @@ flutter run -d chrome \
 flutter build web --dart-define=USE_MOCK=true
 ```
 
+### 4. Compilación Android Release y Firma (`apk`)
+
+Por defecto, si no existe `android/key.properties`, el build de release cae a la firma `debug` para que `flutter run --release` siga funcionando en desarrollo. Para firmar un APK real de distribución:
+
+1. Generar la keystore (ejemplo en `android/app/upload-keystore.jks`):
+   ```bash
+   keytool -genkey -v -keystore android/app/upload-keystore.jks -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+   ```
+2. Copiar `android/key.properties.example` como `android/key.properties` y completar las contraseñas, alias y ruta (`storeFile=upload-keystore.jks`). Ambos archivos (`key.properties` y `*.jks`) están ignorados por Git.
+3. Compilar el APK release (conectado a Supabase o en modo mock):
+   ```bash
+   flutter build apk --release \
+     --dart-define=SUPABASE_URL=https://TU-PROYECTO.supabase.co \
+     --dart-define=SUPABASE_PUBLISHABLE_KEY=TU_PUBLISHABLE_KEY
+   ```
+
+---
+
+## 📱 Qué se puede demostrar dónde
+
+| Funcionalidad / Criterio | Android físico | Web (Chrome / PWA) |
+|---|---|---|
+| Flujo completo (audio, Storage, RLS, Realtime, Isolate/compute) | ✅ Completo | ✅ Completo |
+| Cámara (`D1`) | ✅ Captura real con cámara | ℹ️ Solo selector de galería |
+| Notificaciones locales (`E1`) | ✅ Notificación nativa Android | ⚠️ No disponible en navegador → respaldo `SnackBar` in-app |
+| Tareas en segundo plano (`E2`, Workmanager) | ✅ Isolate nativo de Workmanager | ⚠️ No soportado en navegador → confirmación visual in-app |
+| Foco de audio / llamadas (`E3`) | ✅ `audio_session` nativo | ℹ️ Controlado por políticas del navegador |
+
 ---
 
 ## 🧪 Pruebas y Calidad de Código

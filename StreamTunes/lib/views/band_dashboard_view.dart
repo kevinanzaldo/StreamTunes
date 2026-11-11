@@ -368,7 +368,9 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => BandPublicView(band: band)),
+                    MaterialPageRoute(
+                      builder: (_) => BandPublicView(band: band),
+                    ),
                   );
                 },
                 icon: const Icon(Icons.visibility, size: 18),
@@ -503,14 +505,15 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                                   Image.network(
                                     band.coverUrl!,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) =>
-                                        const Center(
-                                      child: Icon(
-                                        Icons.music_note,
-                                        color: Colors.white38,
-                                        size: 48,
-                                      ),
-                                    ),
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Center(
+                                              child: Icon(
+                                                Icons.music_note,
+                                                color: Colors.white38,
+                                                size: 48,
+                                              ),
+                                            ),
                                   )
                                 else
                                   const Center(
@@ -648,8 +651,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                           final newName = nameController.text.trim();
                           if (newName.length < 2) {
                             setDialogState(() {
-                              localError =
-                                  'El nombre de la banda debe tener al menos 2 letras.';
+                              localError = 'El nombre de la banda debe tener al menos 2 letras.';
                             });
                             return;
                           }
@@ -668,7 +670,9 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                                   bytes: selectedImage!.bytes,
                                   fileName: selectedImage!.name,
                                 );
-                                newCoverUrl = repos.storage.getCoverPublicUrl(path);
+                                newCoverUrl = repos.storage.getCoverPublicUrl(
+                                  path,
+                                );
                               } catch (_) {
                                 newCoverUrl =
                                     'data:image/jpeg;base64,${base64Encode(selectedImage!.bytes)}';
@@ -753,15 +757,15 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                               Container(
-                            width: 80,
-                            height: 80,
-                            color: AppTheme.primaryGreen.withAlpha(40),
-                            child: const Icon(
-                              Icons.groups,
-                              color: AppTheme.primaryGreen,
-                              size: 40,
-                            ),
-                          ),
+                                width: 80,
+                                height: 80,
+                                color: AppTheme.primaryGreen.withAlpha(40),
+                                child: const Icon(
+                                  Icons.groups,
+                                  color: AppTheme.primaryGreen,
+                                  size: 40,
+                                ),
+                              ),
                         )
                       : Container(
                           width: 80,
@@ -870,7 +874,11 @@ class _BandDashboardViewState extends State<BandDashboardView> {
           padding: EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(Icons.album_outlined, color: AppTheme.textSecondary, size: 36),
+              Icon(
+                Icons.album_outlined,
+                color: AppTheme.textSecondary,
+                size: 36,
+              ),
               SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -914,15 +922,15 @@ class _BandDashboardViewState extends State<BandDashboardView> {
             child: ListTile(
               leading: ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: entry.value.first.coverUrl != null &&
+                child:
+                    entry.value.first.coverUrl != null &&
                         entry.value.first.coverUrl!.isNotEmpty
                     ? Image.network(
                         entry.value.first.coverUrl!,
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Container(
+                        errorBuilder: (context, error, stackTrace) => Container(
                           width: 48,
                           height: 48,
                           color: Colors.white12,

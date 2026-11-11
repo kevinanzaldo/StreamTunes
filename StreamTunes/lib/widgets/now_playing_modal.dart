@@ -74,17 +74,17 @@ class NowPlayingModal extends StatelessWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: song.coverUrl != null &&
-                                song.coverUrl!.isNotEmpty
+                        child:
+                            song.coverUrl != null && song.coverUrl!.isNotEmpty
                             ? Image.network(
                                 song.coverUrl!,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) =>
                                     Icon(
-                                  song.icon,
-                                  size: 100,
-                                  color: Colors.white,
-                                ),
+                                      song.icon,
+                                      size: 100,
+                                      color: Colors.white,
+                                    ),
                               )
                             : Icon(song.icon, size: 100, color: Colors.white),
                       ),

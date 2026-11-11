@@ -40,9 +40,12 @@ class PlayerBar extends StatelessWidget {
                       behavior: HitTestBehavior.opaque,
                       onTapDown: (details) {
                         final width = constraints.maxWidth;
-                        if (width > 0 && reproductor.totalDuration > Duration.zero) {
-                          final fraction = (details.localPosition.dx / width).clamp(0.0, 1.0);
-                          final seekTarget = reproductor.totalDuration * fraction;
+                        if (width > 0 &&
+                            reproductor.totalDuration > Duration.zero) {
+                          final fraction = (details.localPosition.dx / width)
+                              .clamp(0.0, 1.0);
+                          final seekTarget =
+                              reproductor.totalDuration * fraction;
                           reproductor.seekTo(seekTarget);
                         }
                       },
@@ -53,9 +56,7 @@ class PlayerBar extends StatelessWidget {
                             Container(color: Colors.white12),
                             FractionallySizedBox(
                               widthFactor: progress,
-                              child: Container(
-                                color: AppTheme.primaryGreen,
-                              ),
+                              child: Container(color: AppTheme.primaryGreen),
                             ),
                           ],
                         ),
@@ -72,7 +73,8 @@ class PlayerBar extends StatelessWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: song.coverUrl != null && song.coverUrl!.isNotEmpty
+                        child:
+                            song.coverUrl != null && song.coverUrl!.isNotEmpty
                             ? Image.network(
                                 song.coverUrl!,
                                 width: 44,
@@ -80,21 +82,21 @@ class PlayerBar extends StatelessWidget {
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) =>
                                     Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: song.gradientColors,
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: song.gradientColors,
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        song.icon,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
                                     ),
-                                  ),
-                                  child: Icon(
-                                    song.icon,
-                                    color: Colors.white,
-                                    size: 24,
-                                  ),
-                                ),
                               )
                             : Container(
                                 width: 44,
@@ -159,7 +161,10 @@ class PlayerBar extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.skip_previous, color: Colors.white),
+                        icon: const Icon(
+                          Icons.skip_previous,
+                          color: Colors.white,
+                        ),
                         onPressed: reproductor.previous,
                         tooltip: 'Anterior',
                       ),
@@ -172,7 +177,9 @@ class PlayerBar extends StatelessWidget {
                           size: 38,
                         ),
                         onPressed: reproductor.togglePlay,
-                        tooltip: reproductor.isPlaying ? 'Pausar' : 'Reproducir',
+                        tooltip: reproductor.isPlaying
+                            ? 'Pausar'
+                            : 'Reproducir',
                       ),
                       IconButton(
                         icon: const Icon(Icons.skip_next, color: Colors.white),

@@ -10,11 +10,7 @@ class SelectedImageFile {
   final Uint8List bytes;
   final String? path;
 
-  const SelectedImageFile({
-    required this.name,
-    required this.bytes,
-    this.path,
-  });
+  const SelectedImageFile({required this.name, required this.bytes, this.path});
 }
 
 /// Representa un archivo de audio seleccionado por el usuario para su subida.
@@ -92,11 +88,7 @@ class DispositivoCapacidades {
       );
       if (file == null) return null;
       final bytes = await file.readAsBytes();
-      return SelectedImageFile(
-        name: file.name,
-        bytes: bytes,
-        path: file.path,
-      );
+      return SelectedImageFile(name: file.name, bytes: bytes, path: file.path);
     } catch (e) {
       debugPrint('Error al capturar con cámara: $e');
       return null;
@@ -119,11 +111,7 @@ class DispositivoCapacidades {
       );
       if (file == null) return null;
       final bytes = await file.readAsBytes();
-      return SelectedImageFile(
-        name: file.name,
-        bytes: bytes,
-        path: file.path,
-      );
+      return SelectedImageFile(name: file.name, bytes: bytes, path: file.path);
     } catch (e) {
       debugPrint('Error al seleccionar de galería: $e');
       return null;

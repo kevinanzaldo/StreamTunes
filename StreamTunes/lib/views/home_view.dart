@@ -132,7 +132,11 @@ class _HomeViewState extends State<HomeView> {
                 prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted),
                 suffixIcon: isSearching
                     ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.white54, size: 18),
+                        icon: const Icon(
+                          Icons.clear,
+                          color: Colors.white54,
+                          size: 18,
+                        ),
                         onPressed: () => _viewModel.setSearchQuery(''),
                       )
                     : null,
@@ -201,7 +205,11 @@ class _HomeViewState extends State<HomeView> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Row(
                 children: [
-                  const Icon(Icons.groups, color: AppTheme.primaryGreen, size: 20),
+                  const Icon(
+                    Icons.groups,
+                    color: AppTheme.primaryGreen,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Bandas (${filteredBands.length})',
@@ -216,10 +224,16 @@ class _HomeViewState extends State<HomeView> {
             ),
             if (filteredBands.isEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Text(
                   'No se encontraron bandas con "${_viewModel.searchQuery}".',
-                  style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                  style: const TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 13,
+                  ),
                 ),
               )
             else
@@ -276,7 +290,11 @@ class _HomeViewState extends State<HomeView> {
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
               child: Row(
                 children: [
-                  const Icon(Icons.music_note, color: AppTheme.primaryGreen, size: 20),
+                  const Icon(
+                    Icons.music_note,
+                    color: AppTheme.primaryGreen,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Canciones (${songs.length})',
@@ -291,10 +309,16 @@ class _HomeViewState extends State<HomeView> {
             ),
             if (songs.isEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Text(
                   'No se encontraron canciones con "${_viewModel.searchQuery}".',
-                  style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                  style: const TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 13,
+                  ),
                 ),
               )
             else
@@ -343,7 +367,10 @@ class _HomeViewState extends State<HomeView> {
                           fontSize: 12,
                         ),
                         backgroundColor: AppTheme.surfaceElevated,
-                        side: const BorderSide(color: Colors.white24, width: 0.8),
+                        side: const BorderSide(
+                          color: Colors.white24,
+                          width: 0.8,
+                        ),
                         onPressed: () {
                           Navigator.push(
                             context,
@@ -396,11 +423,7 @@ class _HomeViewState extends State<HomeView> {
         color: AppTheme.surfaceElevated,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(
-        Icons.groups,
-        color: AppTheme.primaryGreen,
-        size: 24,
-      ),
+      child: const Icon(Icons.groups, color: AppTheme.primaryGreen, size: 24),
     );
   }
 }

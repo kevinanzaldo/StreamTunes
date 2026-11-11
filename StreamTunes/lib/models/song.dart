@@ -44,7 +44,8 @@ class Song {
   }) {
     final albumData = json['albums'] as Map<String, dynamic>?;
     final bandData = json['bands'] as Map<String, dynamic>?;
-    final resolvedCover = coverUrl ??
+    final resolvedCover =
+        coverUrl ??
         (json['cover_url'] as String?) ??
         (albumData?['cover_url'] as String?) ??
         (bandData?['cover_url'] as String?);

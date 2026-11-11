@@ -118,7 +118,10 @@ void main() {
 
       expect(okValido, isTrue);
       expect(repo.added, hasLength(1));
-      expect(repo.added.single.duration, const Duration(minutes: 1, seconds: 20));
+      expect(
+        repo.added.single.duration,
+        const Duration(minutes: 1, seconds: 20),
+      );
     },
   );
 }
