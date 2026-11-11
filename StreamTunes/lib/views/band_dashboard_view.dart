@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import '../models/band.dart';
@@ -15,7 +13,7 @@ import 'upload_view.dart';
 
 /// Panel privado de gestión para miembros de una banda ("Mi banda").
 ///
-/// Permite ver el estado de moderación, controlar el cupo de subida (X/20 temas),
+/// Permite ver el estado de moderación, controlar el cupo de subida (X/$kMaxSongsPerBand temas),
 /// calcular métricas avanzadas en segundo plano con Isolate (Criterio D3),
 /// consultar donaciones recibidas y acceder rápidamente a la subida o al perfil público.
 class BandDashboardView extends StatefulWidget {
@@ -44,6 +42,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
         songRepository: repos.songs,
         donationRepository: repos.donations,
         bandRepository: repos.bands,
+        storageRepository: repos.storage,
       );
       _ownsViewModel = true;
       _viewModel.load();
@@ -662,48 +661,37 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                           });
 
                           try {
-                            String? newCoverUrl = band.coverUrl;
-                            if (selectedImage != null) {
-                              try {
-                                final path = await repos.storage.uploadCover(
-                                  bandId: band.id,
-                                  bytes: selectedImage!.bytes,
-                                  fileName: selectedImage!.name,
-                                );
-                                newCoverUrl = repos.storage.getCoverPublicUrl(
-                                  path,
-                                );
-                              } catch (_) {
-                                newCoverUrl =
-                                    'data:image/jpeg;base64,${base64Encode(selectedImage!.bytes)}';
-                              }
-                            }
-
                             final double goal =
                                 double.tryParse(goalController.text.trim()) ??
                                 band.donationGoal;
 
-                            final updated = band.copyWith(
+                            final result = await _viewModel.updateBandProfile(
+                              currentBand: band,
                               name: newName,
                               genre: genreController.text.trim(),
                               location: locationController.text.trim(),
                               bio: bioController.text.trim(),
                               donationGoal: goal,
-                              coverUrl: newCoverUrl,
+                              selectedImage: selectedImage,
+                              fallbackBandRepository: repos.bands,
+                              fallbackStorageRepository: repos.storage,
                             );
-
-                            await repos.bands.updateBand(updated);
                             await session?.refreshMemberships();
                             _viewModel.load();
 
                             if (ctx.mounted) {
                               Navigator.pop(dialogCtx);
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   content: Text(
-                                    '¡Datos y portada de la banda actualizados!',
+                                    result.coverFailed
+                                        ? 'Datos actualizados, pero no se pudo subir la nueva portada.'
+                                        : '¡Datos y portada de la banda actualizados!',
                                   ),
-                                  backgroundColor: AppTheme.primaryGreen,
+                                  backgroundColor: result.coverFailed
+                                      ? Colors.orangeAccent
+                                      : AppTheme.primaryGreen,
                                 ),
                               );
                             }

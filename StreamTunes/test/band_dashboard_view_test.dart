@@ -1,9 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:streamtunes/models/band.dart';
 import 'package:streamtunes/models/song.dart';
+import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
 import 'package:streamtunes/repositories/interfaces/song_repository.dart';
+import 'package:streamtunes/repositories/interfaces/storage_repository.dart';
+import 'package:streamtunes/services/dispositivo_capacidades.dart';
 import 'package:streamtunes/view_models/band_dashboard_view_model.dart';
 import 'package:streamtunes/view_models/library_view_model.dart';
 import 'package:streamtunes/view_models/reproductor_view_model.dart';
@@ -208,4 +213,59 @@ void main() {
     expect(find.text('Top Oyentes:'), findsOneWidget);
     expect(find.text('Recalcular'), findsOneWidget);
   });
+
+  test('BandDashboardViewModel: updateBandProfile no guarda data URI si falla portada en Storage real', () async {
+    final bandRepo = FakeBandRepository();
+    final band = _testBand();
+    await bandRepo.createBand(band);
+    final vm = BandDashboardViewModel(
+      band: band,
+      songRepository: _MockSongRepo(),
+      donationRepository: FakeDonationRepository(),
+      bandRepository: bandRepo,
+      storageRepository: _ThrowingRealStorageRepo(),
+    );
+
+    final result = await vm.updateBandProfile(
+      currentBand: band,
+      name: 'Los Paneleros Editados',
+      genre: 'Rock',
+      location: 'Rosario',
+      bio: 'Nueva bio',
+      donationGoal: 25000,
+      selectedImage: SelectedImageFile(
+        name: 'portada.jpg',
+        bytes: Uint8List.fromList([1, 2, 3]),
+      ),
+    );
+
+    expect(result.coverFailed, isTrue);
+    final updated = await bandRepo.getBandById(band.id);
+    expect(updated?.coverUrl, isNull);
+  });
+}
+
+class _ThrowingRealStorageRepo implements StorageRepository {
+  @override
+  Future<String> uploadAudio({
+    required String bandId,
+    required String songId,
+    required Uint8List bytes,
+    required String fileName,
+  }) async => '$bandId/$songId.mp3';
+
+  @override
+  Future<String> uploadCover({
+    required String bandId,
+    required Uint8List bytes,
+    required String fileName,
+  }) async => throw Exception('bucket error');
+
+  @override
+  String getAudioPublicUrl(String path) =>
+      'https://example.supabase.co/audio/$path';
+
+  @override
+  String getCoverPublicUrl(String path) =>
+      'https://example.supabase.co/covers/$path';
 }

@@ -100,7 +100,9 @@ class Song {
   }
 
   /// Campos permitidos al insertar en `songs` (ver privilegios por columna).
+  /// Incluye `id` (UUID v4 generado en cliente) para que coincida con la ruta en Storage.
   Map<String, dynamic> toInsertJson({String? albumId}) => {
+    'id': id,
     'band_id': artistId,
     'album_id': albumId,
     'title': title,

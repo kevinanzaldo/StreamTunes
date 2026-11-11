@@ -91,11 +91,13 @@ class _StreamTunesAppState extends State<StreamTunesApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Si la app pasa a estado inactive o paused en plataformas nativas (ej. entra llamada telefónica), pausar música.
-    // En Web (kIsWeb), la música debe seguir sonando aunque el usuario cambie de pestaña o minimice el navegador.
+    // Solo pausar al pasar realmente a segundo plano (paused/hidden) en plataformas nativas.
+    // `inactive` también se dispara al abrir diálogos o selectores de archivo/cámara, y las
+    // llamadas telefónicas las gestiona AudioService vía `audio_session`.
+    // En Web (kIsWeb), la música sigue sonando al cambiar de pestaña o minimizar el navegador.
     if (!kIsWeb &&
-        (state == AppLifecycleState.inactive ||
-            state == AppLifecycleState.paused)) {
+        (state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden)) {
       _reproductorViewModel.pause();
     }
   }

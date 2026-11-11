@@ -3,6 +3,7 @@ import 'dart:isolate';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:just_audio/just_audio.dart';
 
 /// Representa un archivo de imagen seleccionado para portada de tema o banda.
 class SelectedImageFile {
@@ -19,12 +20,14 @@ class SelectedAudioFile {
   final int size;
   final Uint8List? bytes;
   final String? path;
+  final Duration? duration;
 
   const SelectedAudioFile({
     required this.name,
     required this.size,
     this.bytes,
     this.path,
+    this.duration,
   });
 
   String get formattedSize {
@@ -40,11 +43,14 @@ class DispositivoCapacidades {
   final ImagePicker _picker;
   final bool? forzarTieneCamara;
   final Future<SelectedAudioFile?> Function()? audioPickerOverride;
+  final Future<Duration?> Function(SelectedAudioFile audio)?
+  audioDurationReaderOverride;
 
   DispositivoCapacidades({
     ImagePicker? picker,
     this.forzarTieneCamara,
     this.audioPickerOverride,
+    this.audioDurationReaderOverride,
   }) : _picker = picker ?? ImagePicker();
 
   /// Getter asincrónico que determina si el dispositivo cuenta con cámara utilizable.
@@ -132,10 +138,23 @@ class DispositivoCapacidades {
     }
   }
 
-  /// Selecciona un archivo de audio real (.mp3, .m4a, .wav) con FilePicker.
+  /// Selecciona un archivo de audio real (.mp3, .m4a, .wav) con FilePicker
+  /// e intenta determinar su duración real.
   Future<SelectedAudioFile?> seleccionarArchivoAudio() async {
     if (audioPickerOverride != null) {
-      return audioPickerOverride!();
+      final picked = await audioPickerOverride!();
+      if (picked == null) return null;
+      if (picked.duration != null || audioDurationReaderOverride == null) {
+        return picked;
+      }
+      final measured = await leerDuracionAudio(picked);
+      return SelectedAudioFile(
+        name: picked.name,
+        size: picked.size,
+        bytes: picked.bytes,
+        path: picked.path,
+        duration: measured,
+      );
     }
     try {
       final file = await FilePicker.pickFile(
@@ -145,15 +164,62 @@ class DispositivoCapacidades {
       if (file == null) return null;
       final bytes = await file.readAsBytes();
       final size = (await file.length()) ?? bytes.length;
-      return SelectedAudioFile(
+      final baseFile = SelectedAudioFile(
         name: file.name,
         size: size,
         bytes: bytes,
         path: file.path,
       );
+      final duration = await leerDuracionAudio(baseFile);
+      return SelectedAudioFile(
+        name: file.name,
+        size: size,
+        bytes: bytes,
+        path: file.path,
+        duration: duration,
+      );
     } catch (e) {
       debugPrint('Error al seleccionar archivo de audio: $e');
       return null;
+    }
+  }
+
+  /// Determina la duración real de [audio] con `just_audio` (o mediante
+  /// [audioDurationReaderOverride] en tests). Devuelve `null` si no se logra leer.
+  Future<Duration?> leerDuracionAudio(SelectedAudioFile audio) async {
+    if (audio.duration != null) return audio.duration;
+    if (audioDurationReaderOverride != null) {
+      return audioDurationReaderOverride!(audio);
+    }
+
+    AudioPlayer? player;
+    try {
+      player = AudioPlayer();
+      if (!kIsWeb && audio.path != null && audio.path!.isNotEmpty) {
+        final dur = await player.setFilePath(audio.path!);
+        return dur ?? player.duration;
+      }
+      if (audio.bytes != null && audio.bytes!.isNotEmpty) {
+        final ext = audio.name.contains('.')
+            ? audio.name.split('.').last.toLowerCase()
+            : 'mp3';
+        final mimeType = switch (ext) {
+          'wav' => 'audio/wav',
+          'm4a' => 'audio/mp4',
+          _ => 'audio/mpeg',
+        };
+        final uri = Uri.dataFromBytes(audio.bytes!, mimeType: mimeType);
+        final dur = await player.setAudioSource(AudioSource.uri(uri));
+        return dur ?? player.duration;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('No se pudo leer la duración del audio "${audio.name}": $e');
+      return null;
+    } finally {
+      try {
+        await player?.dispose();
+      } catch (_) {}
     }
   }
 

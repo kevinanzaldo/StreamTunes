@@ -2,9 +2,12 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
+import '../config/app_constants.dart';
 import '../models/song.dart';
 import '../repositories/app_repositories.dart';
+import '../repositories/fake/fake_storage_repository.dart';
 import '../repositories/interfaces/song_repository.dart';
 import '../repositories/interfaces/storage_repository.dart';
 import '../services/background_upload_service.dart';
@@ -13,6 +16,7 @@ import '../services/dispositivo_capacidades.dart';
 class UploadViewModel extends ChangeNotifier {
   static const String _demoBandId = 'artist_1';
   static const String _demoBandName = 'Los Subterráneos';
+  static const Uuid _uuid = Uuid();
 
   final DispositivoCapacidades _dispositivoCapacidades;
   final SongRepository _songRepository;
@@ -25,11 +29,13 @@ class UploadViewModel extends ChangeNotifier {
   String? _nombreArchivoAudio;
   SelectedAudioFile? _selectedAudio;
   Duration? _duracionAudio;
+  String _genero = kSongGenres.first;
   int _songCount = 0;
   int _albumCount = 0;
   bool _cargandoCupos = false;
   bool _subiendo = false;
   bool _notificacionNativaProgramada = false;
+  String? _avisoPortada;
   String? _mensajeExito;
   String? _error;
   bool _disposed = false;
@@ -56,17 +62,19 @@ class UploadViewModel extends ChangeNotifier {
   String? get nombreArchivoAudio => _nombreArchivoAudio;
   SelectedAudioFile? get selectedAudio => _selectedAudio;
   Duration? get duracionAudio => _duracionAudio;
+  String get genero => _genero;
   bool get tienePortada => _fotoPortadaPath != null || _selectedImage != null;
   bool get tieneAudio => _selectedAudio != null || _nombreArchivoAudio != null;
   bool get subiendo => _subiendo;
   bool get notificacionNativaProgramada => _notificacionNativaProgramada;
+  String? get avisoPortada => _avisoPortada;
   String? get mensajeExito => _mensajeExito;
   String? get error => _error;
   int get songCount => _songCount;
   int get albumCount => _albumCount;
   bool get cargandoCupos => _cargandoCupos;
-  bool get hasReachedSongLimit => _songCount >= 20;
-  bool get hasReachedAlbumLimit => _albumCount >= 2;
+  bool get hasReachedSongLimit => _songCount >= kMaxSongsPerBand;
+  bool get hasReachedAlbumLimit => _albumCount >= kMaxAlbumsPerBand;
 
   /// Consulta asincrónica de capacidades del dispositivo (Bloque 3 - Criterios D1, F1).
   Future<void> inicializarCapacidades() async {
@@ -132,14 +140,24 @@ class UploadViewModel extends ChangeNotifier {
     _notify();
   }
 
-  /// Limpia todo el formulario para que la siguiente subida empiece vacía
+  /// Selecciona un género del catálogo permitido.
+  void setGenero(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return;
+    _genero = trimmed;
+    _notify();
+  }
+
+  /// Limpia todo el formulario para que la siguiente subida empiece vacía.
   void limpiarFormulario() {
     _selectedImage = null;
     _fotoPortadaPath = null;
     _selectedAudio = null;
     _nombreArchivoAudio = null;
     _duracionAudio = null;
+    _genero = kSongGenres.first;
     _notificacionNativaProgramada = false;
+    _avisoPortada = null;
     _error = null;
     _mensajeExito = null;
     _notify();
@@ -147,7 +165,7 @@ class UploadViewModel extends ChangeNotifier {
 
   void setDuracionAudio(Duration? dur) {
     _duracionAudio = dur;
-    if (dur != null && dur.inSeconds < 60) {
+    if (dur != null && dur.inSeconds < kMinSongDurationSeconds) {
       _error = 'La canción debe durar al menos 1 minuto (60 segundos).';
     } else {
       _error = null;
@@ -155,13 +173,19 @@ class UploadViewModel extends ChangeNotifier {
     _notify();
   }
 
-  /// Abre el explorador de archivos para elegir un MP3/WAV/M4A real.
+  /// Abre el explorador de archivos para elegir un MP3/WAV/M4A real y leer su duración.
   Future<void> seleccionarAudio() async {
     final result = await _dispositivoCapacidades.seleccionarArchivoAudio();
     if (result != null) {
       _selectedAudio = result;
       _nombreArchivoAudio = result.name;
-      _error = null;
+      _duracionAudio = result.duration;
+      if (_duracionAudio != null &&
+          _duracionAudio!.inSeconds < kMinSongDurationSeconds) {
+        _error = 'La canción debe durar al menos 1 minuto (60 segundos).';
+      } else {
+        _error = null;
+      }
       _notify();
     }
   }
@@ -178,15 +202,14 @@ class UploadViewModel extends ChangeNotifier {
         name: fileName,
         size: size ?? bytes.length,
         bytes: bytes,
+        duration: duration,
       );
+    } else {
+      _selectedAudio = null;
     }
-    if (duration != null) {
-      _duracionAudio = duration;
-      if (duration.inSeconds < 60) {
-        _error = 'La canción debe durar al menos 1 minuto (60 segundos).';
-      } else {
-        _error = null;
-      }
+    _duracionAudio = duration;
+    if (duration != null && duration.inSeconds < kMinSongDurationSeconds) {
+      _error = 'La canción debe durar al menos 1 minuto (60 segundos).';
     } else {
       _error = null;
     }
@@ -195,20 +218,21 @@ class UploadViewModel extends ChangeNotifier {
 
   /// Publica un tema nuevo.
   ///
-  /// El cupo (20 temas / 2 álbumes por banda) se valida acá para dar un
-  /// mensaje claro, y la base de datos lo vuelve a exigir con triggers.
-  ///
-  /// Exige una duración mínima de 1 minuto (60 s).
+  /// El cupo ([kMaxSongsPerBand] temas / [kMaxAlbumsPerBand] álbumes por banda)
+  /// se valida acá como feedback inmediato; la base vuelve a exigirlo con triggers.
+  /// Exige archivo de audio válido y duración mínima de 1 minuto (60 s).
   ///
   /// [artistId] y [artistName] son la banda activa de la sesión. Si no se pasan
   /// (pantalla usada sin sesión, como en los tests) se usa la banda de demo.
   Future<bool> publicarTema({
     required String titulo,
     String album = 'Demo',
+    String? genero,
     String? artistId,
     String? artistName,
     Duration? duracion,
     bool subirEnSegundoPlano = true,
+    bool permitirSinAudioEnDemo = false,
   }) async {
     final bandId = artistId ?? _demoBandId;
     final bandName = artistName ?? _demoBandName;
@@ -221,24 +245,43 @@ class UploadViewModel extends ChangeNotifier {
       return false;
     }
 
-    final finalDuration = duracion ?? _duracionAudio;
-    if (finalDuration != null && finalDuration.inSeconds < 60) {
+    final tieneBytesAudio =
+        _selectedAudio?.bytes != null && _selectedAudio!.bytes!.isNotEmpty;
+    final usaExcepcionDemo =
+        permitirSinAudioEnDemo && _storageRepository is FakeStorageRepository;
+    if (!tieneBytesAudio && !usaExcepcionDemo) {
+      _error = 'Elegí un archivo de audio (.mp3, .m4a o .wav).';
+      _notify();
+      return false;
+    }
+
+    final finalDuration =
+        duracion ?? _duracionAudio ?? _selectedAudio?.duration;
+    if (finalDuration == null || finalDuration.inSeconds <= 0) {
+      _error = 'No pudimos leer la duración del audio, probá con otro archivo.';
+      _notify();
+      return false;
+    }
+    if (finalDuration.inSeconds < kMinSongDurationSeconds) {
       _error =
-          'La canción debe durar al menos 1 minuto (60 segundos). Duración actual: ${finalDuration.inSeconds} s.';
+          'La canción debe durar al menos 1 minuto ($kMinSongDurationSeconds segundos). Duración actual: ${finalDuration.inSeconds} s.';
       _notify();
       return false;
     }
 
     _subiendo = true;
     _notificacionNativaProgramada = false;
+    _avisoPortada = null;
     _error = null;
     _notify();
 
     try {
-      // Validación de límites del MVP: máximo 20 temas o 2 álbumes por banda (Criterio A1)
+      // Chequeo previo para UX; la regla definitiva la imponen los triggers
+      // songs_limit y albums_limit en Supabase.
       final existingSongs = await _songRepository.getSongsByBand(bandId);
-      if (existingSongs.length >= 20) {
-        _error = 'Límite de subida alcanzado: máximo 20 temas por banda.';
+      if (existingSongs.length >= kMaxSongsPerBand) {
+        _error =
+            'Límite de subida alcanzado: máximo $kMaxSongsPerBand temas por banda.';
         return false;
       }
 
@@ -248,21 +291,27 @@ class UploadViewModel extends ChangeNotifier {
           .toSet();
 
       final targetAlbum = album.trim().toLowerCase();
-      if (!existingAlbums.contains(targetAlbum) && existingAlbums.length >= 2) {
-        _error = 'Límite de subida alcanzado: máximo 2 álbumes por banda.';
+      if (targetAlbum.isNotEmpty &&
+          !existingAlbums.contains(targetAlbum) &&
+          existingAlbums.length >= kMaxAlbumsPerBand) {
+        _error =
+            'Límite de subida alcanzado: máximo $kMaxAlbumsPerBand álbumes por banda.';
         return false;
       }
 
-      final songId = 'song_${DateTime.now().millisecondsSinceEpoch}';
-      String audioPath = '$bandId/$songId.mp3';
-
-      if (_selectedAudio != null && _selectedAudio!.bytes != null) {
+      final songId = _uuid.v4();
+      final selectedBytes = _selectedAudio?.bytes;
+      String audioPath;
+      if (selectedBytes != null && selectedBytes.isNotEmpty) {
         audioPath = await _storageRepository.uploadAudio(
           bandId: bandId,
           songId: songId,
-          bytes: _selectedAudio!.bytes!,
+          bytes: selectedBytes,
           fileName: _selectedAudio!.name,
         );
+      } else {
+        // Solo alcanzable cuando permitirSinAudioEnDemo=true con FakeStorageRepository.
+        audioPath = '$bandId/$songId.mp3';
       }
 
       // Subida de imagen de portada (si seleccionó foto)
@@ -276,14 +325,28 @@ class UploadViewModel extends ChangeNotifier {
           );
           coverUrl = _storageRepository.getCoverPublicUrl(coverPath);
         } catch (e) {
-          debugPrint('Upload cover falló en Storage: $e. Usando data URI');
-          final b64 = base64Encode(_selectedImage!.bytes);
-          final mime = _selectedImage!.name.toLowerCase().endsWith('.png')
-              ? 'image/png'
-              : 'image/jpeg';
-          coverUrl = 'data:$mime;base64,$b64';
+          if (_storageRepository is FakeStorageRepository) {
+            // Fallback a data URI únicamente para el modo demo offline con FakeStorageRepository.
+            debugPrint(
+              'Upload cover falló en FakeStorageRepository: $e. Usando data URI demo',
+            );
+            final b64 = base64Encode(_selectedImage!.bytes);
+            final mime = _selectedImage!.name.toLowerCase().endsWith('.png')
+                ? 'image/png'
+                : 'image/jpeg';
+            coverUrl = 'data:$mime;base64,$b64';
+          } else {
+            debugPrint('Upload cover falló en Storage de Supabase: $e');
+            coverUrl = null;
+            _avisoPortada =
+                'No se pudo subir la portada; el tema se publicó sin ella.';
+          }
         }
       }
+
+      final resolvedGenre = (genero ?? _genero).trim().isNotEmpty
+          ? (genero ?? _genero).trim()
+          : kSongGenres.first;
 
       final nuevaCancion = Song(
         id: songId,
@@ -291,8 +354,8 @@ class UploadViewModel extends ChangeNotifier {
         artistId: bandId,
         artistName: bandName,
         album: album.trim(),
-        duration: finalDuration ?? const Duration(minutes: 3, seconds: 20),
-        genre: 'Indie Rock',
+        duration: finalDuration,
+        genre: resolvedGenre,
         icon: Icons.music_note,
         gradientColors: const [Color(0xFF1DB954), Color(0xFF191414)],
         audioUrl: audioPath,
@@ -322,11 +385,19 @@ class UploadViewModel extends ChangeNotifier {
       _songCount++;
       return true;
     } catch (e) {
-      final errStr = e.toString();
-      if (errStr.contains('limite_alcanzado') && errStr.contains('album')) {
-        _error = 'Límite de subida alcanzado: máximo 2 álbumes por banda.';
-      } else if (errStr.contains('limite_alcanzado')) {
-        _error = 'Límite de subida alcanzado: máximo 20 temas por banda.';
+      final errLower = e.toString().toLowerCase();
+      final isLimitError =
+          errLower.contains('limite_alcanzado') ||
+          errLower.contains('límite de subida alcanzado') ||
+          errLower.contains('limite de subida alcanzado');
+      final isAlbumError =
+          errLower.contains('album') || errLower.contains('álbum');
+      if (isLimitError && isAlbumError) {
+        _error =
+            'Límite de subida alcanzado: máximo $kMaxAlbumsPerBand álbumes por banda.';
+      } else if (isLimitError) {
+        _error =
+            'Límite de subida alcanzado: máximo $kMaxSongsPerBand temas por banda.';
       } else {
         _error = 'Error al subir tema: $e';
       }
@@ -338,6 +409,7 @@ class UploadViewModel extends ChangeNotifier {
   }
 
   void limpiarMensajes() {
+    _avisoPortada = null;
     _mensajeExito = null;
     _error = null;
     _notify();

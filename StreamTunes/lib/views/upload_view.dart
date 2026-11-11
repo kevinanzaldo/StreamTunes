@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_constants.dart';
 import '../models/band.dart';
 import '../theme/app_theme.dart';
 import '../view_models/upload_view_model.dart';
@@ -82,14 +83,19 @@ class _UploadViewState extends State<UploadView> {
     if (success) {
       final hasNativeNotification =
           _subirEnSegundoPlano && _viewModel.notificacionNativaProgramada;
+      final baseMessage = hasNativeNotification
+          ? 'Tema "$title" publicado con éxito. Se programó la notificación del sistema.'
+          : 'Tema "$title" publicado con éxito.';
+      final coverNotice = _viewModel.avisoPortada;
+      final snackMessage = coverNotice == null
+          ? baseMessage
+          : '$baseMessage $coverNotice';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            hasNativeNotification
-                ? 'Tema "$title" publicado con éxito. Se programó la notificación del sistema.'
-                : 'Tema "$title" publicado con éxito.',
-          ),
-          backgroundColor: AppTheme.primaryGreen,
+          content: Text(snackMessage),
+          backgroundColor: coverNotice == null
+              ? AppTheme.primaryGreen
+              : Colors.orangeAccent,
         ),
       );
       _titleController.clear();
@@ -195,7 +201,7 @@ class _UploadViewState extends State<UploadView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Límite inicial: máximo 2 álbumes o 20 temas por banda.\nFormato: MP3 a 192 kbps.',
+                      'Límite inicial: máximo $kMaxAlbumsPerBand álbumes o $kMaxSongsPerBand temas por banda.\nFormato: MP3 a 192 kbps.',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 13,
@@ -206,7 +212,7 @@ class _UploadViewState extends State<UploadView> {
                       Text(
                         _viewModel.cargandoCupos
                             ? 'Consultando cupo disponible...'
-                            : 'Cupo utilizado: ${_viewModel.songCount}/20 temas · ${_viewModel.albumCount}/2 álbumes',
+                            : 'Cupo utilizado: ${_viewModel.songCount}/$kMaxSongsPerBand temas · ${_viewModel.albumCount}/$kMaxAlbumsPerBand álbumes',
                         style: TextStyle(
                           color: _viewModel.hasReachedSongLimit
                               ? Colors.redAccent
@@ -276,13 +282,58 @@ class _UploadViewState extends State<UploadView> {
               ),
               const SizedBox(height: 16),
 
-              // Archivo de audio
+              // Género musical
               const Text(
-                'Archivo de audio (.mp3, .m4a, .wav)',
+                'Género musical *',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                key: const ValueKey('upload_genre_dropdown'),
+                initialValue: kSongGenres.contains(_viewModel.genero)
+                    ? _viewModel.genero
+                    : kSongGenres.first,
+                dropdownColor: AppTheme.surfaceElevated,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: AppTheme.surfaceElevated,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                items: kSongGenres
+                    .map(
+                      (genre) =>
+                          DropdownMenuItem(value: genre, child: Text(genre)),
+                    )
+                    .toList(),
+                onChanged: _viewModel.subiendo
+                    ? null
+                    : (val) {
+                        if (val != null) {
+                          _viewModel.setGenero(val);
+                        }
+                      },
+              ),
+              const SizedBox(height: 16),
+
+              // Archivo de audio
+              const Text(
+                'Archivo de audio (.mp3, .m4a, .wav) *',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Obligatorio · duración mínima: $kMinSongDurationSeconds segundos.',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
               ),
               const SizedBox(height: 6),
               ElevatedButton.icon(
@@ -307,13 +358,15 @@ class _UploadViewState extends State<UploadView> {
                 Row(
                   children: [
                     Icon(
-                      _viewModel.duracionAudio != null &&
-                              _viewModel.duracionAudio!.inSeconds < 60
+                      _viewModel.duracionAudio == null ||
+                              _viewModel.duracionAudio!.inSeconds <
+                                  kMinSongDurationSeconds
                           ? Icons.warning_amber_rounded
                           : Icons.check_circle,
                       color:
-                          _viewModel.duracionAudio != null &&
-                              _viewModel.duracionAudio!.inSeconds < 60
+                          _viewModel.duracionAudio == null ||
+                              _viewModel.duracionAudio!.inSeconds <
+                                  kMinSongDurationSeconds
                           ? Colors.orangeAccent
                           : AppTheme.primaryGreen,
                       size: 16,
@@ -326,8 +379,9 @@ class _UploadViewState extends State<UploadView> {
                             : 'Audio: ${_viewModel.nombreArchivoAudio}',
                         style: TextStyle(
                           color:
-                              _viewModel.duracionAudio != null &&
-                                  _viewModel.duracionAudio!.inSeconds < 60
+                              _viewModel.duracionAudio == null ||
+                                  _viewModel.duracionAudio!.inSeconds <
+                                      kMinSongDurationSeconds
                               ? Colors.orangeAccent
                               : AppTheme.primaryGreen,
                           fontSize: 12,
@@ -337,22 +391,30 @@ class _UploadViewState extends State<UploadView> {
                     ),
                   ],
                 ),
-                if (_viewModel.duracionAudio != null) ...[
-                  const SizedBox(height: 4),
+                const SizedBox(height: 4),
+                if (_viewModel.duracionAudio != null)
                   Text(
                     'Duración: ${_viewModel.duracionAudio!.inMinutes}:${(_viewModel.duracionAudio!.inSeconds % 60).toString().padLeft(2, '0')} min'
-                    '${_viewModel.duracionAudio!.inSeconds < 60 ? " ❌ Mínimo requerido: 1 minuto (60 s)" : " ✅ Válido"}',
+                    '${_viewModel.duracionAudio!.inSeconds < kMinSongDurationSeconds ? " ❌ Mínimo requerido: 1 minuto ($kMinSongDurationSeconds s)" : " ✅ Válido"}',
                     style: TextStyle(
-                      color: _viewModel.duracionAudio!.inSeconds < 60
+                      color:
+                          _viewModel.duracionAudio!.inSeconds <
+                              kMinSongDurationSeconds
                           ? Colors.redAccent
                           : AppTheme.textSecondary,
                       fontSize: 12,
-                      fontWeight: _viewModel.duracionAudio!.inSeconds < 60
+                      fontWeight:
+                          _viewModel.duracionAudio!.inSeconds <
+                              kMinSongDurationSeconds
                           ? FontWeight.bold
                           : FontWeight.normal,
                     ),
+                  )
+                else
+                  const Text(
+                    'No se pudo detectar la duración del audio. Probá con otro archivo.',
+                    style: TextStyle(color: Colors.orangeAccent, fontSize: 12),
                   ),
-                ],
               ],
               const SizedBox(height: 16),
 

@@ -41,44 +41,99 @@ class SupabaseSongRepository implements SongRepository {
     return rows.map((row) => songFromRow(_client, row)).toList();
   }
 
+  bool _isMissingCoverUrlColumn(PostgrestException e) {
+    final msg = e.message.toLowerCase();
+    return (e.code == '42703' || e.code == 'PGRST204') &&
+        msg.contains('cover_url');
+  }
+
+  bool _isMissingAlbumsTable(PostgrestException e) {
+    final msg = e.message.toLowerCase();
+    return (e.code == '42P01' || e.code == 'PGRST205') &&
+        msg.contains('albums');
+  }
+
+  Future<String?> _resolveOrCreateAlbumId(Song song) async {
+    final albumTitle = song.album.trim();
+    final hasCover = song.coverUrl != null && song.coverUrl!.isNotEmpty;
+
+    Map<String, dynamic>? existing;
+    var albumTableHasCoverUrl = true;
+    try {
+      existing = await _client
+          .from('albums')
+          .select('id, cover_url')
+          .eq('band_id', song.artistId)
+          .eq('title', albumTitle)
+          .maybeSingle();
+    } on PostgrestException catch (e) {
+      if (_isMissingAlbumsTable(e)) {
+        return null;
+      }
+      if (!_isMissingCoverUrlColumn(e)) {
+        rethrow;
+      }
+      albumTableHasCoverUrl = false;
+      existing = await _client
+          .from('albums')
+          .select('id')
+          .eq('band_id', song.artistId)
+          .eq('title', albumTitle)
+          .maybeSingle();
+    }
+
+    if (existing != null) {
+      final resolvedAlbumId = existing['id'] as String?;
+      if (resolvedAlbumId != null && hasCover && albumTableHasCoverUrl) {
+        try {
+          await _client
+              .from('albums')
+              .update({'cover_url': song.coverUrl})
+              .eq('id', resolvedAlbumId);
+        } on PostgrestException catch (e) {
+          if (!_isMissingCoverUrlColumn(e)) {
+            rethrow;
+          }
+        }
+      }
+      return resolvedAlbumId;
+    }
+
+    try {
+      final insertedAlbum = await _client
+          .from('albums')
+          .insert({
+            'band_id': song.artistId,
+            'title': albumTitle,
+            if (hasCover && albumTableHasCoverUrl) 'cover_url': song.coverUrl,
+          })
+          .select('id')
+          .single();
+      return insertedAlbum['id'] as String?;
+    } on PostgrestException catch (e) {
+      if (_isMissingAlbumsTable(e)) {
+        return null;
+      }
+      if (!_isMissingCoverUrlColumn(e)) {
+        rethrow;
+      }
+      final insertedAlbum = await _client
+          .from('albums')
+          .insert({'band_id': song.artistId, 'title': albumTitle})
+          .select('id')
+          .single();
+      return insertedAlbum['id'] as String?;
+    }
+  }
+
   @override
   Future<Song> addSong(Song song, {String? albumId}) async {
     String? resolvedAlbumId = albumId;
 
-    // Si tiene álbum especificado, vincular o crear en la tabla `albums`
+    // Si tiene álbum especificado, vincular o crear en la tabla `albums`.
+    // No se silencian errores de negocio (por ejemplo `albums_limit`) ni de RLS.
     if (resolvedAlbumId == null && song.album.trim().isNotEmpty) {
-      try {
-        final existing = await _client
-            .from('albums')
-            .select('id, cover_url')
-            .eq('band_id', song.artistId)
-            .eq('title', song.album.trim())
-            .maybeSingle();
-
-        if (existing != null) {
-          resolvedAlbumId = existing['id'] as String?;
-          if (song.coverUrl != null && song.coverUrl!.isNotEmpty) {
-            await _client
-                .from('albums')
-                .update({'cover_url': song.coverUrl})
-                .eq('id', resolvedAlbumId!);
-          }
-        } else {
-          final insertedAlbum = await _client
-              .from('albums')
-              .insert({
-                'band_id': song.artistId,
-                'title': song.album.trim(),
-                if (song.coverUrl != null && song.coverUrl!.isNotEmpty)
-                  'cover_url': song.coverUrl,
-              })
-              .select('id')
-              .single();
-          resolvedAlbumId = insertedAlbum['id'] as String?;
-        }
-      } catch (e) {
-        // Si no se puede vincular álbum (por permisos o tabla), continuar sin bloquear el tema
-      }
+      resolvedAlbumId = await _resolveOrCreateAlbumId(song);
     }
 
     final insertData = <String, dynamic>{
@@ -94,8 +149,11 @@ class SupabaseSongRepository implements SongRepository {
           .insert(insertData)
           .select(_select)
           .single();
-    } catch (_) {
-      // Si la columna cover_url todavía no fue agregada a la tabla songs en Supabase, reintentar sin ese campo
+    } on PostgrestException catch (e) {
+      if (!_isMissingCoverUrlColumn(e)) {
+        rethrow;
+      }
+      // Si la columna cover_url todavía no existe en `songs`, reintentar solo sin ese campo.
       insertData.remove('cover_url');
       row = await _client
           .from('songs')

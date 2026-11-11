@@ -1,14 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../config/app_constants.dart';
 import '../models/band.dart';
 import '../models/donation.dart';
 import '../models/metricas_artista.dart';
 import '../models/song.dart';
+import '../repositories/fake/fake_storage_repository.dart';
 import '../repositories/interfaces/band_repository.dart';
 import '../repositories/interfaces/donation_repository.dart';
 import '../repositories/interfaces/song_repository.dart';
+import '../repositories/interfaces/storage_repository.dart';
 import '../repositories/music_repository.dart';
 import '../services/dispositivo_capacidades.dart';
 
@@ -19,6 +23,7 @@ class BandDashboardViewModel extends ChangeNotifier {
     required this.songRepository,
     required this.donationRepository,
     this.bandRepository,
+    this.storageRepository,
     MusicRepository? musicRepository,
     DispositivoCapacidades? dispositivoCapacidades,
   }) : _musicRepository = musicRepository ?? MusicRepository(),
@@ -29,6 +34,7 @@ class BandDashboardViewModel extends ChangeNotifier {
   final SongRepository songRepository;
   final DonationRepository donationRepository;
   final BandRepository? bandRepository;
+  final StorageRepository? storageRepository;
   final MusicRepository _musicRepository;
   final DispositivoCapacidades _dispositivoCapacidades;
 
@@ -56,8 +62,67 @@ class BandDashboardViewModel extends ChangeNotifier {
   String? get statsError => _statsError;
 
   int get songCount => _songs.length;
-  static const int maxSongs = 20;
-  static const int maxAlbums = 2;
+  static const int maxSongs = kMaxSongsPerBand;
+  static const int maxAlbums = kMaxAlbumsPerBand;
+
+  /// Actualiza datos de perfil y portada de la banda sin persistir `data:` URIs
+  /// en Supabase cuando falla el Storage.
+  Future<({bool coverFailed})> updateBandProfile({
+    required Band currentBand,
+    required String name,
+    required String genre,
+    required String location,
+    required String bio,
+    required double donationGoal,
+    SelectedImageFile? selectedImage,
+    BandRepository? fallbackBandRepository,
+    StorageRepository? fallbackStorageRepository,
+  }) async {
+    final bandsRepo = bandRepository ?? fallbackBandRepository;
+    if (bandsRepo == null) {
+      throw StateError(
+        'No hay repositorio de bandas para guardar los cambios.',
+      );
+    }
+    final storageRepo = storageRepository ?? fallbackStorageRepository;
+
+    String? newCoverUrl = currentBand.coverUrl;
+    var coverFailed = false;
+    if (selectedImage != null && storageRepo != null) {
+      try {
+        final path = await storageRepo.uploadCover(
+          bandId: currentBand.id,
+          bytes: selectedImage.bytes,
+          fileName: selectedImage.name,
+        );
+        newCoverUrl = storageRepo.getCoverPublicUrl(path);
+      } catch (e) {
+        if (storageRepo is FakeStorageRepository) {
+          // Fallback a data URI únicamente para el modo demo offline.
+          final b64 = base64Encode(selectedImage.bytes);
+          final mime = selectedImage.name.toLowerCase().endsWith('.png')
+              ? 'image/png'
+              : 'image/jpeg';
+          newCoverUrl = 'data:$mime;base64,$b64';
+        } else {
+          debugPrint('Upload cover de banda falló en Storage de Supabase: $e');
+          coverFailed = true;
+        }
+      }
+    }
+
+    final updated = currentBand.copyWith(
+      name: name,
+      genre: genre,
+      location: location,
+      bio: bio,
+      donationGoal: donationGoal,
+      coverUrl: newCoverUrl,
+    );
+
+    await bandsRepo.updateBand(updated);
+    return (coverFailed: coverFailed);
+  }
 
   Future<void> load() async {
     _isLoading = true;

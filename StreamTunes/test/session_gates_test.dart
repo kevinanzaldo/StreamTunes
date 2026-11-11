@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:streamtunes/data/mock_data.dart';
@@ -7,6 +8,7 @@ import 'package:streamtunes/repositories/fake/fake_auth_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_playlist_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_storage_repository.dart';
 import 'package:streamtunes/repositories/interfaces/song_repository.dart';
 import 'package:streamtunes/services/dispositivo_capacidades.dart';
 import 'package:streamtunes/view_models/library_view_model.dart';
@@ -64,6 +66,7 @@ Future<UploadViewModel> _crearUploadVm({SongRepository? songs}) async {
   final vm = UploadViewModel(
     dispositivoCapacidades: DispositivoCapacidades(forzarTieneCamara: false),
     songRepository: songs,
+    storageRepository: FakeStorageRepository(),
     autoInicializar: false,
   );
   addTearDown(vm.dispose);
@@ -183,6 +186,12 @@ void main() {
     final vm = await _crearUploadVm(songs: repo);
     await _montar(tester, session, UploadView(viewModel: vm));
 
+    // Seleccionar audio válido para habilitar la publicación.
+    vm.seleccionarArchivoAudio(
+      'tema_ana.mp3',
+      bytes: Uint8List.fromList([1, 2, 3, 4]),
+      duration: const Duration(minutes: 2),
+    );
     // Sin segundo plano: en el test no hay Workmanager.
     await tester.tap(find.byType(SwitchListTile));
     await tester.enterText(find.byType(TextField).first, 'Tema de Ana');

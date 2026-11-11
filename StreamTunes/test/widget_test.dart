@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:streamtunes/data/mock_data.dart';
 import 'package:streamtunes/main.dart';
 import 'package:streamtunes/models/artist.dart';
 import 'package:streamtunes/models/donation.dart';
+import 'package:streamtunes/repositories/fake/fake_song_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_storage_repository.dart';
 import 'package:streamtunes/services/dispositivo_capacidades.dart';
 import 'package:streamtunes/services/donaciones_service.dart';
 import 'package:streamtunes/view_models/artist_detail_view_model.dart';
@@ -117,6 +120,11 @@ void main() {
   testWidgets(
     'Bloque 3: UploadView evalúa tieneCamara (muestra botón de cámara solo si está soportado)',
     (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       // Caso A: Dispositivo con cámara
       final capConCamara = DispositivoCapacidades(forzarTieneCamara: true);
       final vmConCamara = UploadViewModel(
@@ -226,14 +234,26 @@ void main() {
   });
 
   test('Bloque 6: UploadViewModel publica tema y valida campos', () async {
-    final vm = UploadViewModel(autoInicializar: false);
+    final vm = UploadViewModel(
+      songRepository: FakeSongRepository(),
+      storageRepository: FakeStorageRepository(),
+      autoInicializar: false,
+    );
+    addTearDown(
+      () => MockData.songs.removeWhere((s) => s.title == 'Tema Test de Banda'),
+    );
 
     // Sin título debe fallar
     final resultVacio = await vm.publicarTema(titulo: '');
     expect(resultVacio, isFalse);
     expect(vm.error, contains('Ingresa el título'));
 
-    // Con título debe publicar y limpiar
+    // Con audio válido y título debe publicar y limpiar
+    vm.seleccionarArchivoAudio(
+      'tema_test.mp3',
+      bytes: Uint8List.fromList([1, 2, 3]),
+      duration: const Duration(minutes: 2),
+    );
     final resultExito = await vm.publicarTema(
       titulo: 'Tema Test de Banda',
       album: 'Álbum Test',
@@ -247,7 +267,7 @@ void main() {
   });
 
   testWidgets(
-    'Bloque 7: AppLifecycle pausa la música al pasar a inactive o paused',
+    'Bloque 7: AppLifecycle no pausa con inactive y pausa al pasar a hidden o paused',
     (WidgetTester tester) async {
       await tester.pumpWidget(const StreamTunesApp());
       await tester.pumpAndSettle();
@@ -260,38 +280,58 @@ void main() {
       player.play(MockData.songs.first);
       expect(player.isPlaying, isTrue);
 
-      // Simular que el sistema notifica una llamada entrante (inactive)
+      // `inactive` (ej. abrir selector de archivos o diálogo) NO debe cortar la música
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(player.isPlaying, isTrue);
+
+      // Al pasar realmente a segundo plano (`hidden` o `paused`), sí se pausa
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       await tester.pump();
       expect(player.isPlaying, isFalse);
 
-      // Simular reanudación y posterior pausa del sistema
+      // En el ciclo de vida de Flutter, de `hidden` se vuelve a `resumed` vía `inactive`.
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       player.resume();
       expect(player.isPlaying, isTrue);
 
-      // Transición válida: resumed -> inactive -> hidden -> paused
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await tester.pump();
 
       expect(player.isPlaying, isFalse);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     },
   );
 
   test('Límites de subida: máximo 2 álbumes y 20 temas por banda', () async {
     const bandaId = 'artist_test_limite';
     addTearDown(() => MockData.songs.removeWhere((s) => s.artistId == bandaId));
-    final vm = UploadViewModel(autoInicializar: false);
-
-    Future<bool> subir(String titulo, String album) => vm.publicarTema(
-      titulo: titulo,
-      album: album,
-      artistId: bandaId,
-      artistName: 'Banda Test',
-      subirEnSegundoPlano: false,
+    final vm = UploadViewModel(
+      songRepository: FakeSongRepository(),
+      storageRepository: FakeStorageRepository(),
+      autoInicializar: false,
     );
+
+    Future<bool> subir(String titulo, String album) {
+      vm.seleccionarArchivoAudio(
+        'audio_$titulo.mp3',
+        bytes: Uint8List.fromList([1, 2, 3]),
+        duration: const Duration(minutes: 2),
+      );
+      return vm.publicarTema(
+        titulo: titulo,
+        album: album,
+        artistId: bandaId,
+        artistName: 'Banda Test',
+        subirEnSegundoPlano: false,
+      );
+    }
 
     expect(await subir('Tema A', 'Álbum A'), isTrue);
     expect(await subir('Tema B', 'Álbum B'), isTrue);

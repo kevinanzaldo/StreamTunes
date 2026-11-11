@@ -25,6 +25,7 @@ void main() {
         name: 'mi_tema_estudio.mp3',
         size: 3 * 1024 * 1024,
         bytes: Uint8List.fromList([1, 2, 3, 4, 5]),
+        duration: const Duration(minutes: 2, seconds: 15),
       ),
     );
   });
@@ -69,34 +70,37 @@ void main() {
     },
   );
 
-  test(
-    'UploadViewModel: publicarTema sube el archivo a StorageRepository',
-    () async {
-      final vm = UploadViewModel(
-        songRepository: songRepo,
-        storageRepository: storageRepo,
-        dispositivoCapacidades: capacidades,
-        autoInicializar: false,
-      );
+  test('UploadViewModel: publicarTema sube el archivo a StorageRepository', () async {
+    final vm = UploadViewModel(
+      songRepository: songRepo,
+      storageRepository: storageRepo,
+      dispositivoCapacidades: capacidades,
+      autoInicializar: false,
+    );
 
-      await vm.seleccionarAudio();
-      final ok = await vm.publicarTema(
-        titulo: 'Nuevo Hit Subterráneo',
-        album: 'Álbum Uno',
-        artistId: 'artist_1',
-        artistName: 'Los Subterráneos',
-        subirEnSegundoPlano: false,
-      );
+    await vm.seleccionarAudio();
+    final ok = await vm.publicarTema(
+      titulo: 'Nuevo Hit Subterráneo',
+      album: 'Álbum Uno',
+      artistId: 'artist_1',
+      artistName: 'Los Subterráneos',
+      subirEnSegundoPlano: false,
+    );
 
-      expect(ok, isTrue);
-      expect(storageRepo.uploadedAudio, isNotEmpty);
-      final uploadedPath = storageRepo.uploadedAudio.keys.first;
-      expect(uploadedPath, startsWith('artist_1/song_'));
-      expect(uploadedPath, endsWith('.mp3'));
+    expect(ok, isTrue);
+    expect(storageRepo.uploadedAudio, isNotEmpty);
+    final uploadedPath = storageRepo.uploadedAudio.keys.first;
+    final addedSong = (await songRepo.getSongsByBand('artist_1'))
+        .firstWhere((s) => s.title == 'Nuevo Hit Subterráneo');
+    final uuidV4 = RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    );
+    expect(addedSong.id, matches(uuidV4));
+    expect(uploadedPath, equals('artist_1/${addedSong.id}.mp3'));
+    expect(addedSong.toInsertJson()['id'], equals(addedSong.id));
 
-      vm.dispose();
-    },
-  );
+    vm.dispose();
+  });
 
   testWidgets(
     'UploadView: muestra cupo de temas y estado de audio seleccionado',
@@ -143,9 +147,29 @@ void main() {
       // Debe mostrar el audio seleccionado con su tamaño
       expect(find.textContaining('mi_tema_estudio.mp3'), findsWidgets);
       expect(find.textContaining('3.0 MB'), findsWidgets);
+      expect(
+        find.byKey(const ValueKey('upload_genre_dropdown')),
+        findsOneWidget,
+      );
 
       session.dispose();
       vm.dispose();
     },
   );
+
+  test('DispositivoCapacidades: seleccionarArchivoAudio lee duración vía reader inyectado', () async {
+    final cap = DispositivoCapacidades(
+      audioPickerOverride: () async => SelectedAudioFile(
+        name: 'pista_real.mp3',
+        size: 1024,
+        bytes: Uint8List.fromList([10, 20, 30]),
+      ),
+      audioDurationReaderOverride: (audio) async =>
+          const Duration(minutes: 3, seconds: 5),
+    );
+
+    final picked = await cap.seleccionarArchivoAudio();
+    expect(picked, isNotNull);
+    expect(picked!.duration, const Duration(minutes: 3, seconds: 5));
+  });
 }
