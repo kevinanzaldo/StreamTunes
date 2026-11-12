@@ -8,7 +8,7 @@ import 'song_row_mapper.dart';
 /// Implementación real sobre `playlists` y `playlist_songs`.
 ///
 /// Todo es del usuario con sesión iniciada (RLS: `user_id = auth.uid()`).
-/// Hasta que exista el login (Fase 3), leer devuelve vacío y escribir lanza.
+/// Requiere sesión iniciada del usuario (RLS: `user_id = auth.uid()`). Sin sesión, leer devuelve vacío y escribir lanza error.
 class SupabasePlaylistRepository implements PlaylistRepository {
   SupabasePlaylistRepository(this._client);
 

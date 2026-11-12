@@ -25,7 +25,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  group('Fase 6: Donaciones en vivo y tope de gastos', () {
+  group('Donaciones en vivo y tope de gastos', () {
     test(
       'FakeDonationRepository emite donaciones en tiempo real por stream',
       () async {
@@ -99,7 +99,7 @@ void main() {
     });
   });
 
-  group('Fase 6: Estadísticas y Top Fans', () {
+  group('Estadísticas y Top Fans', () {
     test('BandDashboardViewModel carga ranking de fans opt-in y reacciona a donaciones', () async {
       final songRepo = FakeSongRepository();
       final donationRepo = FakeDonationRepository();
@@ -150,7 +150,7 @@ void main() {
     });
   });
 
-  group('Fase 6: Reportes y Moderación', () {
+  group('Reportes y Moderación', () {
     test('FakeReportRepository crea, lista y resuelve reportes', () async {
       final repo = FakeReportRepository();
 
