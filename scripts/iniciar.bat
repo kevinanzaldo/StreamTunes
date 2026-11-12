@@ -1,12 +1,12 @@
 @echo off
 title StreamTunes - Conectado a Supabase
-cd /d "%~dp0"
+cd /d "%~dp0.."
 if not exist "env.json" (
   echo ========================================================
-  echo   Falta el archivo env.json en StreamTunes\
+  echo   Falta el archivo env.json en la raiz del proyecto.
   echo   Copia env.example.json como env.json y completa
   echo   SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY.
-  echo   O usa iniciar_demo_offline.bat para el modo demo.
+  echo   O usa scripts\iniciar_demo_offline.bat para el modo demo.
   echo ========================================================
   pause
   exit /b 1

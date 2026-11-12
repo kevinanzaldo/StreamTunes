@@ -4,7 +4,7 @@
     {
       "label": "Ver Web Local (Inmediato)",
       "type": "shell",
-      "command": ".\\ver_web_local.bat",
+      "command": ".\\scripts\\ver_web_local.bat",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -14,15 +14,14 @@
     {
       "label": "Iniciar con Supabase Real",
       "type": "shell",
-      "command": ".\\iniciar.bat",
+      "command": ".\\scripts\\iniciar.bat",
       "problemMatcher": []
     },
     {
       "label": "Iniciar Modo Demo Offline",
       "type": "shell",
-      "command": ".\\iniciar_demo_offline.bat",
+      "command": ".\\scripts\\iniciar_demo_offline.bat",
       "problemMatcher": []
     }
   ]
 }
-

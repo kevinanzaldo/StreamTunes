@@ -1,23 +1,53 @@
-# IntelliJ / Android Studio
-.idea/
-*.iml
-*.iws
-*.ipr
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+Thumbs.db
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
 
-# Environment and signing secrets
+# IntelliJ / Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code (.vscode está versionado intencionalmente)
+
+# Flutter / Dart / Pub
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+/coverage/
+
+# Build artifacts
+build/
+!build/web/
+
+# Symbols & Obfuscation
+app.*.symbols
+app.*.map.json
+
+# Android Studio local build outputs
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Environment & Android signing secrets
 env.json
 key.properties
 android/key.properties
 *.jks
 *.keystore
 
-# OS generated
-.DS_Store
-Thumbs.db
-
-# Flutter and build artifacts
-.dart_tool/
-build/*
-!build/web/
-
-
+# Widget Preview
+.widget_preview/

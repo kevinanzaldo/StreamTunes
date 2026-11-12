@@ -21,8 +21,8 @@ flutter run -d chrome --dart-define=USE_MOCK=true
 ```
 
 ### 2. Modo Conectado a Supabase (Producción / Prueba)
-1. Copiar `env.example.json` como `env.json` en la carpeta `StreamTunes/` y completar `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` (archivo ignorado por Git).
-2. Ejecutar con `--dart-define-from-file=env.json` (también usado por `iniciar.bat` y `.vscode/launch.json`):
+1. Copiar `env.example.json` como `env.json` en la raíz del proyecto y completar `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` (archivo ignorado por Git).
+2. Ejecutar con `--dart-define-from-file=env.json` (también usado por `scripts/iniciar.bat` y `.vscode/launch.json`):
 ```bash
 flutter run -d chrome --dart-define-from-file=env.json
 ```
@@ -34,7 +34,7 @@ Si usás migraciones por columna en Supabase, aplicá también manualmente `supa
 ```bash
 flutter build web --dart-define=USE_MOCK=true
 ```
-El resultado compilado en `build/web/` se conserva versionado para ejecución inmediata mediante `ver_web_local.bat`.
+El resultado compilado en `build/web/` se conserva versionado para ejecución inmediata mediante `scripts/ver_web_local.bat`.
 
 ### 4. Compilación Android Release y Firma (`apk`)
 
