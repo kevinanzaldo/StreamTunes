@@ -31,7 +31,6 @@ Thumbs.db
 
 # Build artifacts
 build/
-!build/web/
 
 # Symbols & Obfuscation
 app.*.symbols

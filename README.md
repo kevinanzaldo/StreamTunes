@@ -34,7 +34,7 @@ Si usás migraciones por columna en Supabase, aplicá también manualmente `supa
 ```bash
 flutter build web --dart-define=USE_MOCK=true
 ```
-El resultado compilado en `build/web/` se conserva versionado para ejecución inmediata mediante `scripts/ver_web_local.bat`.
+Para servir la web localmente, `scripts/ver_web_local.bat` levanta el servidor HTTP y, si no encuentra `build/web/`, lo compila automáticamente en modo demo antes de abrirlo.
 
 ### 4. Compilación Android Release y Firma (`apk`)
 
