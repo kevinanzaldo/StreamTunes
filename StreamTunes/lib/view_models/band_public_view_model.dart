@@ -95,18 +95,31 @@ class BandPublicViewModel extends ChangeNotifier {
       _maxDonationArs = await donationRepository.getMaxDonationArs();
 
       if (bandRepository != null) {
-        final extras = await Future.wait<Object>([
-          bandRepository!.getBandTopFans(band.id),
-          bandRepository!.getBandEvents(band.id),
-          bandRepository!.getBandPhotos(band.id),
-          bandRepository!.isFollowingBand(band.id),
-          bandRepository!.getFollowersCount(band.id),
-        ]);
-        _topFans = extras[0] as List<OyenteTop>;
-        _events = extras[1] as List<BandEvent>;
-        _photos = extras[2] as List<BandPhoto>;
-        _isFollowing = extras[3] as bool;
-        _followersCount = extras[4] as int;
+        try {
+          _topFans = await bandRepository!.getBandTopFans(band.id);
+        } catch (_) {
+          _topFans = const [];
+        }
+        try {
+          _events = await bandRepository!.getBandEvents(band.id);
+        } catch (_) {
+          _events = const [];
+        }
+        try {
+          _photos = await bandRepository!.getBandPhotos(band.id);
+        } catch (_) {
+          _photos = const [];
+        }
+        try {
+          _isFollowing = await bandRepository!.isFollowingBand(band.id);
+        } catch (_) {
+          _isFollowing = false;
+        }
+        try {
+          _followersCount = await bandRepository!.getFollowersCount(band.id);
+        } catch (_) {
+          _followersCount = 0;
+        }
       }
 
       _followPendingOffline = await _pendingFollowService.hasPendingFollow(

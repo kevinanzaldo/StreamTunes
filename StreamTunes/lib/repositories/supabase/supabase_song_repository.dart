@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/song.dart';
@@ -51,6 +52,12 @@ class SupabaseSongRepository implements SongRepository {
     final msg = e.message.toLowerCase();
     return (e.code == '42P01' || e.code == 'PGRST205') &&
         msg.contains('albums');
+  }
+
+  bool _isMissingLyricsColumn(PostgrestException e) {
+    final msg = e.message.toLowerCase();
+    return (e.code == '42703' || e.code == 'PGRST204') &&
+        msg.contains('lyrics');
   }
 
   Future<String?> _resolveOrCreateAlbumId(Song song) async {
@@ -150,11 +157,15 @@ class SupabaseSongRepository implements SongRepository {
           .select(_select)
           .single();
     } on PostgrestException catch (e) {
-      if (!_isMissingCoverUrlColumn(e)) {
+      if (!_isMissingCoverUrlColumn(e) && !_isMissingLyricsColumn(e)) {
         rethrow;
       }
-      // Si la columna cover_url todavía no existe en `songs`, reintentar solo sin ese campo.
-      insertData.remove('cover_url');
+      if (_isMissingLyricsColumn(e)) {
+        insertData.remove('lyrics_lrc');
+      }
+      if (_isMissingCoverUrlColumn(e)) {
+        insertData.remove('cover_url');
+      }
       row = await _client
           .from('songs')
           .insert(insertData)

@@ -31,13 +31,25 @@ class SupabaseDonationRepository implements DonationRepository {
 
   @override
   Future<List<Donation>> getBandDonations(String bandId) async {
-    final rows = await _client
-        .from('donations')
-        .select(_select)
-        .eq('band_id', bandId)
-        .eq('status', 'approved')
-        .order('created_at', ascending: false);
-    return rows.map(_fromRow).where((d) => d.isApproved).toList();
+    try {
+      final rows = await _client
+          .from('donations')
+          .select(_select)
+          .eq('band_id', bandId)
+          .eq('status', 'approved')
+          .order('created_at', ascending: false);
+      return rows.map(_fromRow).where((d) => d.isApproved).toList();
+    } on PostgrestException catch (e) {
+      if (e.code == '42703' || e.message.toLowerCase().contains('status')) {
+        final fallbackRows = await _client
+            .from('donations')
+            .select(_select)
+            .eq('band_id', bandId)
+            .order('created_at', ascending: false);
+        return fallbackRows.map(_fromRow).toList();
+      }
+      rethrow;
+    }
   }
 
   @override

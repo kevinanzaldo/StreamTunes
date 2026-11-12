@@ -127,36 +127,47 @@ class BandDashboardViewModel extends ChangeNotifier {
     _notify();
 
     try {
-      final results = await Future.wait<Object>([
-        songRepository.getSongsByBand(band.id),
-        donationRepository.getBandDonations(band.id),
-        if (bandRepository != null)
-          bandRepository!.getBandTopFans(band.id)
-        else
-          Future.value(const <OyenteTop>[]),
-        if (bandRepository != null)
-          bandRepository!.getBandEvents(band.id)
-        else
-          Future.value(const <BandEvent>[]),
-        if (bandRepository != null)
-          bandRepository!.getBandPhotos(band.id)
-        else
-          Future.value(const <BandPhoto>[]),
-        if (bandRepository != null)
-          bandRepository!.getFollowersCount(band.id)
-        else
-          Future.value(0),
-      ]);
-      _songs = results[0] as List<Song>;
-      _donations = results[1] as List<Donation>;
-      _topFans = results[2] as List<OyenteTop>;
-      _events = results[3] as List<BandEvent>;
-      _photos = results[4] as List<BandPhoto>;
-      _followersCount = results[5] as int;
+      try {
+        _songs = await songRepository.getSongsByBand(band.id);
+      } catch (e) {
+        debugPrint('Error cargando songs en dashboard: $e');
+        _songs = const [];
+      }
+
+      try {
+        _donations = await donationRepository.getBandDonations(band.id);
+      } catch (e) {
+        debugPrint('Error cargando donaciones en dashboard: $e');
+        _donations = const [];
+      }
+
+      if (bandRepository != null) {
+        try {
+          _topFans = await bandRepository!.getBandTopFans(band.id);
+        } catch (_) {
+          _topFans = const [];
+        }
+        try {
+          _events = await bandRepository!.getBandEvents(band.id);
+        } catch (_) {
+          _events = const [];
+        }
+        try {
+          _photos = await bandRepository!.getBandPhotos(band.id);
+        } catch (_) {
+          _photos = const [];
+        }
+        try {
+          _followersCount = await bandRepository!.getFollowersCount(band.id);
+        } catch (_) {
+          _followersCount = 0;
+        }
+      }
 
       _setupRealtimeSubscriptions();
       _error = null;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error general en dashboard load: $e');
       _error = 'No se pudo cargar la información del panel.';
     } finally {
       _isLoading = false;
