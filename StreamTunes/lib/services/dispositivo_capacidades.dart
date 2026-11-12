@@ -67,11 +67,9 @@ class DispositivoCapacidades {
       return forzarTieneCamara!;
     }
 
-    // En web tradicional de escritorio o entornos sin cámara nativa directa, se oculta.
-    // En móviles (Android / iOS) la cámara está disponible.
+    // En web (especialmente PWA móvil con captura HTML5) y en Android / iOS nativo la cámara está disponible.
     if (kIsWeb) {
-      // En Web PWA, podemos evaluar soporte o deshabilitar captura directa si no hay cámara
-      return false;
+      return true;
     }
 
     switch (defaultTargetPlatform) {

@@ -38,6 +38,26 @@ class Playlist {
     );
   }
 
+  Playlist copyWith({
+    String? id,
+    String? name,
+    String? description,
+    List<Song>? songs,
+    DateTime? createdAt,
+    List<Color>? coverGradient,
+    IconData? icon,
+  }) {
+    return Playlist(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      songs: songs ?? List<Song>.of(this.songs),
+      createdAt: createdAt ?? this.createdAt,
+      coverGradient: coverGradient ?? this.coverGradient,
+      icon: icon ?? this.icon,
+    );
+  }
+
   int get songCount => songs.length;
 
   Duration get totalDuration {

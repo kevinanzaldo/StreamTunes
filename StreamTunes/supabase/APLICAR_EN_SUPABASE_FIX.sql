@@ -27,6 +27,8 @@ grant insert, update, select, delete on public.donations to authenticated;
 grant insert, update, select, delete on public.profiles to authenticated;
 grant insert, update, select, delete on public.band_members to authenticated;
 grant insert, update, select, delete on public.play_events to authenticated;
+grant insert, update, select, delete on public.playlists to authenticated;
+grant insert, update, select, delete on public.playlist_songs to authenticated;
 
 grant select on public.songs to anon;
 grant select on public.bands to anon;

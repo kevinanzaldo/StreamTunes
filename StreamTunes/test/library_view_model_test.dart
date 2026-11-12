@@ -36,6 +36,17 @@ class _UnreachablePlaylistRepository implements PlaylistRepository {
       throw UnimplementedError();
 
   @override
+  Future<Playlist> updatePlaylist(
+    String playlistId, {
+    required String name,
+    String? description,
+  }) async => throw UnimplementedError();
+
+  @override
+  Future<void> deletePlaylist(String playlistId) async =>
+      throw UnimplementedError();
+
+  @override
   Future<void> removeSong(String playlistId, String songId) async =>
       throw UnimplementedError();
 }
@@ -132,6 +143,47 @@ void main() {
       expect(vm.loadFailed, isTrue);
       expect(vm.isLoading, isFalse);
       expect(vm.error, isNotNull);
+    },
+  );
+
+  test('LibraryViewModel: updatePlaylist actualiza el nombre', () async {
+    final vm = _crear();
+    await vm.load();
+    final target = vm.playlists.first;
+
+    expect(await vm.updatePlaylist(target.id, name: 'Nuevo Nombre'), isTrue);
+    expect(
+      vm.playlists.firstWhere((p) => p.id == target.id).name,
+      'Nuevo Nombre',
+    );
+
+    // Nombre vacío debe rechazarse
+    expect(await vm.updatePlaylist(target.id, name: '   '), isFalse);
+  });
+
+  test('LibraryViewModel: deletePlaylist elimina la playlist', () async {
+    final vm = _crear();
+    await vm.load();
+    final target = vm.playlists.first;
+    final totalAntes = vm.playlists.length;
+
+    expect(await vm.deletePlaylist(target.id), isTrue);
+    expect(vm.playlists.length, totalAntes - 1);
+    expect(vm.playlists.any((p) => p.id == target.id), isFalse);
+  });
+
+  test(
+    'LibraryViewModel: removeSongFromPlaylist quita el tema de la lista',
+    () async {
+      final vm = _crear();
+      await vm.load();
+      final playlist = vm.playlists.first;
+      final tema = _sampleSong(id: 'song_to_remove');
+      await vm.addSongToPlaylist(playlist.id, tema);
+      expect(playlist.songs.any((s) => s.id == tema.id), isTrue);
+
+      expect(await vm.removeSongFromPlaylist(playlist.id, tema.id), isTrue);
+      expect(playlist.songs.any((s) => s.id == tema.id), isFalse);
     },
   );
 

@@ -76,6 +76,25 @@ class FakePlaylistRepository implements PlaylistRepository {
   }
 
   @override
+  Future<Playlist> updatePlaylist(
+    String playlistId, {
+    required String name,
+    String? description,
+  }) async {
+    final playlist = _byId(playlistId);
+    playlist.name = name;
+    if (description != null) {
+      playlist.description = description;
+    }
+    return _copy(playlist);
+  }
+
+  @override
+  Future<void> deletePlaylist(String playlistId) async {
+    _playlists.removeWhere((p) => p.id == playlistId);
+  }
+
+  @override
   Future<void> removeSong(String playlistId, String songId) async {
     _byId(playlistId).songs.removeWhere((s) => s.id == songId);
   }

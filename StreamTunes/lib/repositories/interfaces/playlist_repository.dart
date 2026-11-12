@@ -17,5 +17,15 @@ abstract interface class PlaylistRepository {
   /// Agrega un tema a la playlist. Si ya estaba, no hace nada.
   Future<void> addSong(String playlistId, Song song);
 
+  /// Modifica el nombre y/o descripción de una playlist.
+  Future<Playlist> updatePlaylist(
+    String playlistId, {
+    required String name,
+    String? description,
+  });
+
+  /// Elimina una playlist.
+  Future<void> deletePlaylist(String playlistId);
+
   Future<void> removeSong(String playlistId, String songId);
 }

@@ -261,9 +261,7 @@ void main() {
                 child: LibraryScope(
                   library: library,
                   child: MaterialApp(
-                    home: MainNavigationShell(
-                      qrResolutionService: qrService,
-                    ),
+                    home: MainNavigationShell(qrResolutionService: qrService),
                   ),
                 ),
               ),

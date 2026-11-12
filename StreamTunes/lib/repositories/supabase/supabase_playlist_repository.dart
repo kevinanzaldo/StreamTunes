@@ -71,6 +71,32 @@ class SupabasePlaylistRepository implements PlaylistRepository {
   }
 
   @override
+  Future<Playlist> updatePlaylist(
+    String playlistId, {
+    required String name,
+    String? description,
+  }) async {
+    _requireUserId();
+    final data = <String, dynamic>{'name': name};
+    if (description != null) {
+      data['description'] = description.isEmpty ? null : description;
+    }
+    final row = await _client
+        .from('playlists')
+        .update(data)
+        .eq('id', playlistId)
+        .select(_select)
+        .single();
+    return _fromRow(row);
+  }
+
+  @override
+  Future<void> deletePlaylist(String playlistId) async {
+    _requireUserId();
+    await _client.from('playlists').delete().eq('id', playlistId);
+  }
+
+  @override
   Future<void> removeSong(String playlistId, String songId) async {
     await _client
         .from('playlist_songs')

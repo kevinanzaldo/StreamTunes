@@ -672,8 +672,72 @@ class _BandDashboardViewState extends State<BandDashboardView> {
     );
   }
 
+  Future<SelectedImageFile?> _pedirFoto(
+    BuildContext context, {
+    required String titulo,
+  }) async {
+    final tieneCamara = await DispositivoCapacidades.actual.tieneCamara;
+    if (!context.mounted) return null;
+    if (!tieneCamara) {
+      return DispositivoCapacidades.actual.seleccionarFotoArchivo();
+    }
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                titulo,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.camera_alt,
+                color: AppTheme.primaryGreen,
+              ),
+              title: const Text(
+                'Sacar foto con la cámara',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () => Navigator.pop(ctx, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.photo_library,
+                color: AppTheme.primaryGreen,
+              ),
+              title: const Text(
+                'Elegir de la galería',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return null;
+    if (source == 'camera') {
+      return DispositivoCapacidades.actual.tomarFotoArchivo();
+    } else {
+      return DispositivoCapacidades.actual.seleccionarFotoArchivo();
+    }
+  }
+
   Future<void> _addShowPhotoFlow(BuildContext context) async {
-    final img = await DispositivoCapacidades.actual.seleccionarFotoArchivo();
+    final img = await _pedirFoto(context, titulo: 'Agregar foto de show');
     if (img == null || !context.mounted) return;
     final captionCtrl = TextEditingController();
 
@@ -802,8 +866,10 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                         onTap: saving
                             ? null
                             : () async {
-                                final img = await DispositivoCapacidades.actual
-                                    .seleccionarFotoArchivo();
+                                final img = await _pedirFoto(
+                                  context,
+                                  titulo: 'Foto / Portada de la banda',
+                                );
                                 if (img != null) {
                                   setDialogState(() {
                                     selectedImage = img;

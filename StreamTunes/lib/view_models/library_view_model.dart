@@ -116,6 +116,69 @@ class LibraryViewModel extends ChangeNotifier {
     }
   }
 
+  /// Modifica el nombre y descripción de una playlist.
+  Future<bool> updatePlaylist(
+    String playlistId, {
+    required String name,
+    String? description,
+  }) async {
+    if (name.trim().isEmpty) return false;
+    _error = null;
+    try {
+      final updated = await playlistRepository.updatePlaylist(
+        playlistId,
+        name: name.trim(),
+        description: description?.trim(),
+      );
+      final index = _playlists.indexWhere((p) => p.id == playlistId);
+      if (index != -1) {
+        _playlists[index] = updated;
+        _notify();
+      }
+      return true;
+    } catch (e, st) {
+      debugPrint('LibraryViewModel: error actualizando playlist: $e\n$st');
+      _error = 'No se pudo actualizar la playlist.';
+      _notify();
+      return false;
+    }
+  }
+
+  /// Elimina una playlist.
+  Future<bool> deletePlaylist(String playlistId) async {
+    _error = null;
+    try {
+      await playlistRepository.deletePlaylist(playlistId);
+      _playlists.removeWhere((p) => p.id == playlistId);
+      _notify();
+      return true;
+    } catch (e, st) {
+      debugPrint('LibraryViewModel: error eliminando playlist: $e\n$st');
+      _error = 'No se pudo eliminar la playlist.';
+      _notify();
+      return false;
+    }
+  }
+
+  /// Quita un tema de una playlist.
+  Future<bool> removeSongFromPlaylist(String playlistId, String songId) async {
+    _error = null;
+    try {
+      await playlistRepository.removeSong(playlistId, songId);
+      final index = _playlists.indexWhere((p) => p.id == playlistId);
+      if (index != -1) {
+        _playlists[index].songs.removeWhere((s) => s.id == songId);
+        _notify();
+      }
+      return true;
+    } catch (e, st) {
+      debugPrint('LibraryViewModel: error quitando tema de playlist: $e\n$st');
+      _error = 'No se pudo quitar el tema de la playlist.';
+      _notify();
+      return false;
+    }
+  }
+
   void _notify() {
     if (!_disposed) notifyListeners();
   }

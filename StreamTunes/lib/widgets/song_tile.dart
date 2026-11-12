@@ -11,8 +11,9 @@ import 'session_scope.dart';
 
 class SongTile extends StatelessWidget {
   final Song song;
+  final Widget? trailing;
 
-  const SongTile({super.key, required this.song});
+  const SongTile({super.key, required this.song, this.trailing});
 
   void _showAddDialog(BuildContext context, LibraryViewModel lib) {
     showDialog(
@@ -227,23 +228,25 @@ class SongTile extends StatelessWidget {
               ),
             ),
           ),
-          trailing: IconButton(
-            icon: const Icon(Icons.playlist_add, color: Colors.white60),
-            onPressed: () {
-              final session = SessionScope.maybeRead(context);
-              if (session != null && !session.isLoggedIn) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Iniciá sesión en la pestaña Cuenta para guardar temas en playlists.',
-                    ),
-                  ),
-                );
-                return;
-              }
-              _showAddDialog(context, library);
-            },
-          ),
+          trailing:
+              trailing ??
+              IconButton(
+                icon: const Icon(Icons.playlist_add, color: Colors.white60),
+                onPressed: () {
+                  final session = SessionScope.maybeRead(context);
+                  if (session != null && !session.isLoggedIn) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Iniciá sesión en la pestaña Cuenta para guardar temas en playlists.',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  _showAddDialog(context, library);
+                },
+              ),
           onTap: () {
             player.play(song);
           },
