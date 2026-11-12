@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streamtunes/repositories/fake/fake_auth_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_song_repository.dart';
@@ -18,6 +19,9 @@ void main() {
   late DispositivoCapacidades capacidades;
 
   setUp(() {
+    // signIn -> syncPendingFollows usa SharedPreferences; sin este mock el
+    // testWidgets queda esperando el canal de plataforma y se cuelga.
+    SharedPreferences.setMockInitialValues({});
     songRepo = FakeSongRepository();
     storageRepo = FakeStorageRepository();
     capacidades = DispositivoCapacidades(
