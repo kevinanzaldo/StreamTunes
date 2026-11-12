@@ -1,7 +1,6 @@
 -- =========================================================
 -- StreamTunes · 0002_rls.sql
 -- Row Level Security. Sin políticas, nadie accede a nada.
--- NO EJECUTADO TODAVÍA.
 -- =========================================================
 
 -- Hace el script re-ejecutable: borra las políticas de `public` antes de recrearlas.

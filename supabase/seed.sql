@@ -1,6 +1,9 @@
 -- =========================================================
--- StreamTunes · seed.sql  (SOLO para proyecto de PRUEBA / demo)
--- NO EJECUTADO TODAVÍA. Correr después de las migraciones 0001–0004.
+-- StreamTunes · seed.sql
+-- EXCLUSIVO PARA ENTORNOS DE DESARROLLO LOCAL Y DEMOSTRACIÓN.
+-- NO APLICAR EN PRODUCCIÓN: contiene credenciales de prueba
+-- y datos mockeados para evaluación y tests.
+-- Correr después de las migraciones 0001–0009.
 -- Contraseña de todos los usuarios de prueba: Test1234!
 --
 -- Usuarios:

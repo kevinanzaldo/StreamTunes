@@ -4,7 +4,6 @@
 --  (a) bands.status solo lo cambia un admin (vía RPC)
 --  (b) play_count / donations_collected / hidden no se editan desde la app
 -- Técnica: privilegios por COLUMNA para el rol `authenticated` + RPCs security definer.
--- NO EJECUTADO TODAVÍA.
 -- =========================================================
 
 -- bands ------------------------------------------------------------

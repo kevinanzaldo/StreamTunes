@@ -1,7 +1,7 @@
 -- =========================================================
--- StreamTunes · 0007_kiwi_profe_features.sql
--- Adaptaciones de segunda entrevista con Kiwi y criterios
--- técnicos de la devolución de la profesora.
+-- StreamTunes · 0007_public_ranking_events_and_stats.sql
+-- Ranking público opt-in, eventos de banda, fotos, follows
+-- y funciones RPC de estadísticas agregadas en servidor.
 -- =========================================================
 
 -- 1. Opt-in de privacidad en profiles para el ranking público
@@ -159,8 +159,8 @@ drop policy if exists "band_follows_delete_own" on public.band_follows;
 create policy "band_follows_delete_own" on public.band_follows
   for delete using (auth.uid() = user_id);
 
--- 7. Funciones RPC de agregación en SERVIDOR (Corrección de la profesora)
---    Reemplaza agregaciones en el cliente/Isolate sobre todos los oyentes.
+-- 7. Funciones RPC de agregación en servidor
+--    Agregaciones eficientes en PostgreSQL para métricas de bandas.
 
 create or replace function public.band_aggregated_stats(p_band uuid)
 returns jsonb

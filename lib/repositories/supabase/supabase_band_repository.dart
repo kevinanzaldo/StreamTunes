@@ -282,11 +282,11 @@ class SupabaseBandRepository implements BandRepository {
   @override
   Future<int> getFollowersCount(String bandId) async {
     try {
-      final rows = await _client
-          .from('band_follows')
-          .select('user_id')
-          .eq('band_id', bandId);
-      return rows.length;
+      final res = await _client.rpc(
+        'band_follower_count',
+        params: {'p_band': bandId},
+      );
+      return (res as num?)?.toInt() ?? 0;
     } catch (_) {
       return 0;
     }
@@ -298,10 +298,14 @@ class SupabaseBandRepository implements BandRepository {
     if (userId == null) {
       throw const RepositoryFailure('No hay sesión activa para seguir.');
     }
-    await _client.from('band_follows').upsert({
-      'band_id': bandId,
-      'user_id': userId,
-    });
+    await _client.from('band_follows').upsert(
+      {
+        'band_id': bandId,
+        'user_id': userId,
+      },
+      onConflict: 'band_id,user_id',
+      ignoreDuplicates: true,
+    );
   }
 
   @override
