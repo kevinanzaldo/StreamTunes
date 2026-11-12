@@ -6,11 +6,9 @@ class AppTheme {
   static const Color background = Color(0xFF121212);
   static const Color surface = Color(0xFF181818);
   static const Color surfaceElevated = Color(0xFF282828);
-  static const Color cardColor = Color(0xFF242424);
 
   // Colores de acento
   static const Color primaryGreen = Color(0xFF1DB954);
-  static const Color primaryGreenHover = Color(0xFF1ED760);
   static const Color goldAccent = Color(0xFFFFB800); // Para donaciones y apoyo
   static const Color errorRed = Color(0xFFE91429);
 

@@ -6,6 +6,7 @@ import '../models/profile.dart';
 import '../repositories/interfaces/auth_repository.dart';
 import '../repositories/interfaces/band_repository.dart';
 import '../repositories/interfaces/repository_failure.dart';
+import '../services/pending_follow_service.dart';
 
 /// Si la app ya terminó de averiguar si hay una sesión guardada.
 enum SessionStatus { restoring, ready }
@@ -23,10 +24,12 @@ class SessionViewModel extends ChangeNotifier {
   SessionViewModel({
     required this._authRepository,
     required this._bandRepository,
-  });
+    PendingFollowService? pendingFollowService,
+  }) : _pendingFollowService = pendingFollowService ?? PendingFollowService();
 
   final AuthRepository _authRepository;
   final BandRepository _bandRepository;
+  final PendingFollowService _pendingFollowService;
 
   SessionStatus _status = SessionStatus.restoring;
   Profile? _profile;
@@ -69,9 +72,6 @@ class SessionViewModel extends ChangeNotifier {
 
   bool isMemberOf(String bandId) =>
       _memberships.any((m) => m.band.id == bandId);
-
-  bool isOwnerOf(String bandId) =>
-      _memberships.any((m) => m.band.id == bandId && m.isOwner);
 
   void clearMessages() {
     if (_error == null && _notice == null) return;
@@ -257,6 +257,64 @@ class SessionViewModel extends ChangeNotifier {
       _memberships = const [];
     }
     _pickActiveBand();
+    await syncPendingFollows();
+  }
+
+  /// Activa o desactiva la visibilidad pública en rankings Top Fans (opt-in).
+  Future<bool> togglePublicProfile(bool isPublic) async {
+    final current = _profile;
+    if (current == null || _busy) return false;
+    return _run(() async {
+      final updated = await _authRepository.updateProfile(
+        current.copyWith(isPublicProfile: isPublic),
+      );
+      _profile = updated;
+      _notice = isPublic
+          ? 'Tu nombre y foto ahora pueden verse en el ranking Top Fans.'
+          : 'Tu perfil quedó oculto en rankings (aparecés como Fan anónimo).';
+      return true;
+    });
+  }
+
+  /// Crea una sesión anónima rápida (sin pedir email) para flujos de QR en vivo.
+  Future<bool> signInAnonymously() async {
+    if (_profile != null) return true;
+    try {
+      final profile = await _authRepository.signInAnonymously();
+      await _loadAccount(profile);
+      _notify();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Sigue a una banda al instante (usado al escanear QR en recitales sin pedir mail).
+  /// Si no hay conexión en un sótano/túnel, encola la acción localmente para
+  /// sincronizarla apenas vuelva la red.
+  Future<({bool followed, bool queuedOffline})> followBandWithQr(
+    String bandId,
+  ) async {
+    try {
+      if (_profile == null) {
+        final ok = await signInAnonymously();
+        if (!ok) throw StateError('offline');
+      }
+      await _bandRepository.followBand(bandId);
+      await _pendingFollowService.removePendingFollow(bandId);
+      return (followed: true, queuedOffline: false);
+    } catch (_) {
+      await _pendingFollowService.queueFollow(bandId);
+      return (followed: true, queuedOffline: true);
+    }
+  }
+
+  Future<int> syncPendingFollows() async {
+    if (_profile == null) return 0;
+    final synced = await _pendingFollowService.syncPendingFollows(
+      _bandRepository,
+    );
+    return synced.length;
   }
 
   void _pickActiveBand() {

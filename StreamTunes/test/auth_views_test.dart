@@ -1,18 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:streamtunes/data/mock_data.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streamtunes/main.dart';
-import 'package:streamtunes/models/artist.dart';
 import 'package:streamtunes/repositories/fake/fake_auth_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
-import 'package:streamtunes/view_models/artist_detail_view_model.dart';
-import 'package:streamtunes/view_models/library_view_model.dart';
-import 'package:streamtunes/view_models/reproductor_view_model.dart';
 import 'package:streamtunes/view_models/session_view_model.dart';
 import 'package:streamtunes/views/account_view.dart';
-import 'package:streamtunes/views/artist_detail_view.dart';
-import 'package:streamtunes/widgets/library_scope.dart';
-import 'package:streamtunes/widgets/reproductor_scope.dart';
 import 'package:streamtunes/widgets/session_scope.dart';
 
 const _pass = FakeAuthRepository.demoPassword;
@@ -39,6 +32,7 @@ Future<SessionViewModel> _mostrarCuenta(
   WidgetTester tester, {
   String? email,
 }) async {
+  SharedPreferences.setMockInitialValues({});
   _pantallaGrande(tester);
   final session = _crearSesion();
   await session.restore();
@@ -83,7 +77,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Ana Quiroga'), findsOneWidget);
-      expect(find.text(MockData.artists.first.name), findsOneWidget);
+      expect(find.text('Los Subterráneos'), findsOneWidget);
       expect(find.text('Cerrar sesión'), findsOneWidget);
       expect(find.text('Entrar'), findsNothing);
     },
@@ -192,65 +186,22 @@ void main() {
   );
 
   testWidgets(
-    'Estadísticas privadas con sesión: solo las ve quien es miembro de la banda',
+    'Membresía y permisos de banda: Ana es dueña de su banda y no de ajenas',
     (WidgetTester tester) async {
-      _pantallaGrande(tester, alto: 4000);
+      _pantallaGrande(tester, alto: 1200);
 
-      final player = ReproductorViewModel();
-      final library = LibraryViewModel();
-      addTearDown(player.dispose);
-      addTearDown(library.dispose);
+      final session = _crearSesion();
+      await session.restore();
 
-      Future<void> mostrarPerfil({
-        required String? email,
-        required Artist artist,
-      }) async {
-        final session = _crearSesion();
-        await session.restore();
-        if (email != null) await session.signIn(email: email, password: _pass);
+      // Antes de iniciar sesión no es miembro de ninguna
+      expect(session.isMemberOf('artist_1'), isFalse);
 
-        final vm = ArtistDetailViewModel(
-          artist: artist,
-          autoEscucharDonaciones: false,
-        );
-        addTearDown(vm.dispose);
+      // Al iniciar sesión como Ana
+      await session.signIn(email: 'ana@streamtunes.test', password: _pass);
+      expect(session.isMemberOf('artist_1'), isTrue);
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: SessionScope(
-              session: session,
-              child: ReproductorScope(
-                reproductor: player,
-                child: LibraryScope(
-                  library: library,
-                  child: ArtistDetailView(
-                    key: ValueKey('${email}_${artist.id}'),
-                    artist: artist,
-                    viewModel: vm,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-      }
-
-      const panelEstadisticas = 'Métricas en Segundo Plano (Isolate)';
-      final suya = MockData.artists[0];
-      final ajena = MockData.artists[1];
-
-      // Ana es miembro de su banda: ve las estadísticas.
-      await mostrarPerfil(email: 'ana@streamtunes.test', artist: suya);
-      expect(find.text(panelEstadisticas), findsOneWidget);
-
-      // Ana mirando otra banda: no las ve.
-      await mostrarPerfil(email: 'ana@streamtunes.test', artist: ajena);
-      expect(find.text(panelEstadisticas), findsNothing);
-
-      // Un visitante (con sesión disponible pero sin iniciar) no las ve.
-      await mostrarPerfil(email: null, artist: suya);
-      expect(find.text(panelEstadisticas), findsNothing);
+      // Ana no es miembro de la banda de Beto
+      expect(session.isMemberOf('artist_2'), isFalse);
     },
   );
 }

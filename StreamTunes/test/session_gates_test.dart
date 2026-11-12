@@ -1,13 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:streamtunes/data/mock_data.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streamtunes/main.dart';
 import 'package:streamtunes/models/song.dart';
 import 'package:streamtunes/repositories/fake/fake_auth_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_playlist_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_song_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_storage_repository.dart';
 import 'package:streamtunes/repositories/interfaces/song_repository.dart';
 import 'package:streamtunes/services/dispositivo_capacidades.dart';
@@ -69,7 +70,7 @@ Future<SessionViewModel> _crearSesion() async {
 Future<UploadViewModel> _crearUploadVm({SongRepository? songs}) async {
   final vm = UploadViewModel(
     dispositivoCapacidades: DispositivoCapacidades(forzarTieneCamara: false),
-    songRepository: songs,
+    songRepository: songs ?? FakeSongRepository(),
     storageRepository: FakeStorageRepository(),
     autoInicializar: false,
   );
@@ -116,6 +117,10 @@ Future<void> _montar(
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('Subir: un visitante ve el ingreso y no el formulario', (
     WidgetTester tester,
   ) async {
@@ -144,10 +149,7 @@ void main() {
 
       expect(find.text('Entrar'), findsNothing);
       expect(find.text('Publicar Tema'), findsOneWidget);
-      expect(
-        find.text('Publicás como ${MockData.artists.first.name}'),
-        findsOneWidget,
-      );
+      expect(find.text('Publicás como Los Subterráneos'), findsOneWidget);
     },
   );
 
@@ -204,8 +206,8 @@ void main() {
 
     expect(repo.added, hasLength(1));
     expect(repo.added.single.title, 'Tema de Ana');
-    expect(repo.added.single.artistId, MockData.artists.first.id);
-    expect(repo.added.single.artistName, MockData.artists.first.name);
+    expect(repo.added.single.artistId, 'artist_1');
+    expect(repo.added.single.artistName, 'Los Subterráneos');
   });
 
   testWidgets(
@@ -233,11 +235,8 @@ void main() {
     'SongTile: sin sesión avisa que hay que iniciar sesión para guardar',
     (WidgetTester tester) async {
       final session = await _crearSesion();
-      await _montar(
-        tester,
-        session,
-        Scaffold(body: SongTile(song: MockData.songs.first)),
-      );
+      final song = (await FakeSongRepository().getLatestSongs()).first;
+      await _montar(tester, session, Scaffold(body: SongTile(song: song)));
 
       await tester.tap(find.byIcon(Icons.playlist_add));
       await tester.pump();

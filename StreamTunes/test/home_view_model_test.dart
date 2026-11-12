@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:streamtunes/models/song.dart';
 import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_playlist_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_song_repository.dart';
 import 'package:streamtunes/repositories/interfaces/song_repository.dart';
 import 'package:streamtunes/view_models/home_view_model.dart';
@@ -68,9 +70,9 @@ void main() {
 
       expect(vm.status, HomeStatus.ready);
       expect(vm.bands, isNotEmpty);
-      expect(vm.latestSongs, isNotEmpty);
+      expect(vm.filteredSongs, isNotEmpty);
 
-      final fechas = vm.latestSongs.map((s) => s.uploadedAt).toList();
+      final fechas = vm.filteredSongs.map((s) => s.uploadedAt).toList();
       final ordenadas = List<DateTime>.of(fechas)
         ..sort((a, b) => b.compareTo(a));
       expect(fechas, equals(ordenadas));
@@ -88,23 +90,26 @@ void main() {
 
       await vm.load();
       expect(vm.status, HomeStatus.ready);
-      expect(vm.latestSongs, isNotEmpty);
+      expect(vm.filteredSongs, isNotEmpty);
     },
   );
 
   test(
-    'HomeViewModel: artistFor devuelve la misma instancia por banda',
+    'HomeViewModel: filtrado de bandas y canciones por búsqueda y género',
     () async {
       final vm = _crearViewModel();
       addTearDown(vm.dispose);
       await vm.load();
 
-      final band = vm.bands.first;
-      final artist = vm.artistFor(band);
+      expect(vm.bands, isNotEmpty);
+      expect(vm.filteredSongs, isNotEmpty);
 
-      expect(artist.id, band.id);
-      expect(artist.name, band.name);
-      expect(identical(artist, vm.artistFor(band)), isTrue);
+      vm.setSearchQuery('Subterráneos');
+      expect(vm.filteredBands, hasLength(1));
+      expect(vm.filteredBands.first.name, 'Los Subterráneos');
+
+      vm.setSearchQuery('');
+      expect(vm.filteredBands, vm.bands);
     },
   );
 
@@ -113,7 +118,10 @@ void main() {
     (WidgetTester tester) async {
       final vm = _crearViewModel(songs: _FlakySongRepository());
       final player = ReproductorViewModel();
-      final library = LibraryViewModel();
+      final library = LibraryViewModel(
+        playlistRepository: FakePlaylistRepository(),
+        donationRepository: FakeDonationRepository(),
+      );
       addTearDown(vm.dispose);
       addTearDown(player.dispose);
       addTearDown(library.dispose);

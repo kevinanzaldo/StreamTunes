@@ -1,16 +1,33 @@
 import 'package:flutter/material.dart';
 
-import '../../data/mock_data.dart';
 import '../../models/playlist.dart';
 import '../../models/song.dart';
 import '../interfaces/playlist_repository.dart';
 
-/// Implementación en memoria (tests y modo demo). Parte de las playlists de
-/// `MockData` y devuelve copias, así que mutar lo devuelto no cambia lo guardado.
+/// Implementación en memoria (tests y modo demo). Devuelve copias,
+/// de modo que mutar lo devuelto no altera la base simulada.
 class FakePlaylistRepository implements PlaylistRepository {
-  FakePlaylistRepository() : _playlists = MockData.getInitialPlaylists();
+  FakePlaylistRepository({List<Playlist>? initialPlaylists})
+    : _playlists = initialPlaylists ?? _defaultPlaylists();
 
   final List<Playlist> _playlists;
+
+  static List<Playlist> _defaultPlaylists() => [
+    Playlist(
+      id: 'pl_1',
+      name: 'Favoritos Under',
+      description: 'Joyas ocultas del circuito independiente',
+      coverGradient: const [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
+      icon: Icons.favorite,
+    ),
+    Playlist(
+      id: 'pl_2',
+      name: 'Noche de Garaje',
+      description: 'Sonido crudo para altas horas',
+      coverGradient: const [Color(0xFFFF416C), Color(0xFFFF4B2B)],
+      icon: Icons.nightlife,
+    ),
+  ];
 
   Playlist _copy(Playlist p) => Playlist(
     id: p.id,

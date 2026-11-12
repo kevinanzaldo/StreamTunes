@@ -6,9 +6,9 @@ import 'package:streamtunes/models/band.dart';
 import 'package:streamtunes/models/song.dart';
 import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_playlist_repository.dart';
 import 'package:streamtunes/repositories/interfaces/song_repository.dart';
 import 'package:streamtunes/repositories/interfaces/storage_repository.dart';
-import 'package:streamtunes/repositories/music_repository.dart';
 import 'package:streamtunes/services/dispositivo_capacidades.dart';
 import 'package:streamtunes/view_models/band_dashboard_view_model.dart';
 import 'package:streamtunes/view_models/library_view_model.dart';
@@ -111,7 +111,7 @@ void main() {
       expect(vm.isCalculatingStats, isFalse);
       expect(vm.statsError, isNull);
       expect(vm.metrics, isNotNull);
-      expect(vm.metrics!.totalReproducciones, greaterThan(0));
+      expect(vm.metrics!.totalReproducciones, 0);
     },
   );
 
@@ -126,7 +126,10 @@ void main() {
     await vm.load();
 
     final player = ReproductorViewModel();
-    final library = LibraryViewModel();
+    final library = LibraryViewModel(
+      playlistRepository: FakePlaylistRepository(),
+      donationRepository: FakeDonationRepository(),
+    );
     addTearDown(player.dispose);
     addTearDown(library.dispose);
 
@@ -162,7 +165,10 @@ void main() {
     await vm.load();
 
     final player = ReproductorViewModel();
-    final library = LibraryViewModel();
+    final library = LibraryViewModel(
+      playlistRepository: FakePlaylistRepository(),
+      donationRepository: FakeDonationRepository(),
+    );
     addTearDown(player.dispose);
     addTearDown(library.dispose);
 
@@ -199,7 +205,10 @@ void main() {
     });
 
     final player = ReproductorViewModel();
-    final library = LibraryViewModel();
+    final library = LibraryViewModel(
+      playlistRepository: FakePlaylistRepository(),
+      donationRepository: FakeDonationRepository(),
+    );
     addTearDown(player.dispose);
     addTearDown(library.dispose);
 
@@ -216,57 +225,62 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('Top Fans del período:'), findsOneWidget);
     expect(
-      find.text('Datos de demostración (benchmark Isolate 50k)'),
+      find.text(
+        'Todavía no hay reproducciones registradas para tu banda. ¡Compartí tu perfil para empezar a sumar minutos!',
+      ),
       findsOneWidget,
     );
-    expect(find.text('Top Oyentes (play_events reales):'), findsOneWidget);
-    expect(
-      find.text('Sin eventos de reproducción reales registrados todavía.'),
-      findsOneWidget,
-    );
-    expect(find.text('Recalcular'), findsOneWidget);
+    expect(find.text('Actualizar estadísticas'), findsOneWidget);
   });
 
-  test('MusicRepository.generateAndCalculateMetrics devuelve el mismo resultado para la misma semilla sin nombres inventados', () {
-    const input = MetricsComputeInput(
-      artistId: 'band_dash',
-      songTitlesById: {'s1': 'Tema Alfa', 's2': 'Tema Beta'},
-      count: 50000,
-      seed: 42,
+  test('procesarMetricasReales formatea series reales sin datos sintéticos ni eventos falsos', () {
+    const input = SeriesProcesadasInput(
+      playEvents: [
+        {
+          'song_id': 's1',
+          'user_id': 'user_ana',
+          'seconds_listened': 300,
+          'profiles': {'display_name': 'Ana Oyente', 'is_public_profile': true},
+        },
+      ],
+      songTitlesById: {'s1': 'Tema Alfa'},
     );
 
-    final primera = MusicRepository.generateAndCalculateMetrics(input);
-    final segunda = MusicRepository.generateAndCalculateMetrics(input);
+    final metrics = procesarMetricasReales(input);
 
-    expect(primera, equals(segunda));
-    expect(primera.totalReproducciones, 50000);
-    expect(primera.topTemas, isNotEmpty);
-    expect(primera.reproduccionesPorDia, isNotEmpty);
-    expect(primera.rankingOyentes, isEmpty);
-    expect(primera.esSimulacion, isTrue);
+    expect(metrics.totalReproducciones, 1);
+    expect(metrics.totalMinutos, 5);
+    expect(metrics.topTemas, hasLength(1));
+    expect(metrics.topTemas.first.titulo, 'Tema Alfa');
+    expect(metrics.rankingOyentes, hasLength(1));
+    expect(metrics.rankingOyentes.first.nombre, 'Ana Oyente');
   });
 
-  test('BandDashboardViewModel.calculateMetrics agrega play_events reales por user_id dentro del Isolate', () async {
+  test('BandDashboardViewModel.calculateMetrics agrega play_events reales por user_id respetando privacidad', () async {
     final repo = _MockSongRepo()
       ..playEvents = [
         {
           'song_id': 's1',
           'user_id': 'user_ana',
           'seconds_listened': 240,
-          'profiles': {'display_name': 'Ana Oyente'},
+          'profiles': {'display_name': 'Ana Oyente', 'is_public_profile': true},
         },
         {
           'song_id': 's1',
           'user_id': 'user_ana',
           'seconds_listened': 180,
-          'profiles': {'display_name': 'Ana Oyente'},
+          'profiles': {'display_name': 'Ana Oyente', 'is_public_profile': true},
         },
         {
           'song_id': 's1',
           'user_id': 'user_beto',
           'seconds_listened': 120,
-          'profiles': {'display_name': 'Beto Oyente'},
+          'profiles': {
+            'display_name': 'Beto Oyente',
+            'is_public_profile': true,
+          },
         },
       ];
 
@@ -319,11 +333,15 @@ void main() {
 
 class _ThrowingRealStorageRepo implements StorageRepository {
   @override
+  bool get isMock => false;
+
+  @override
   Future<String> uploadAudio({
     required String bandId,
     required String songId,
     required Uint8List bytes,
     required String fileName,
+    void Function(double progress)? onProgress,
   }) async => '$bandId/$songId.mp3';
 
   @override
@@ -331,6 +349,7 @@ class _ThrowingRealStorageRepo implements StorageRepository {
     required String bandId,
     required Uint8List bytes,
     required String fileName,
+    void Function(double progress)? onProgress,
   }) async => throw Exception('bucket error');
 
   @override

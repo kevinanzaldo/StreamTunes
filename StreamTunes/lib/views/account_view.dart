@@ -79,7 +79,7 @@ class _AccountBody extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
-          SessionBanner(session: session),
+          const SessionBanner(),
           Row(
             children: [
               CircleAvatar(
@@ -159,7 +159,34 @@ class _AccountBody extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 16),
+          Card(
+            color: AppTheme.surfaceElevated,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: SwitchListTile(
+              key: const ValueKey('account_public_profile_switch'),
+              value: profile.isPublicProfile,
+              activeTrackColor: AppTheme.primaryGreen,
+              onChanged: session.busy
+                  ? null
+                  : (val) => session.togglePublicProfile(val),
+              title: const Text(
+                'Mostrar mi nombre y foto en Top Fans',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: const Text(
+                'Si está apagado, aparecés como Fan anónimo en los rankings de las bandas.',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
           const Text(
             'Mis bandas',
             style: TextStyle(

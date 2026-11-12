@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../view_models/session_view_model.dart';
+import 'session_scope.dart';
 
 /// Campo de texto con etiqueta, con el mismo estilo que el formulario de subida.
 class AuthTextField extends StatelessWidget {
@@ -69,14 +70,15 @@ class AuthTextField extends StatelessWidget {
 /// Muestra el último error (rojo) o aviso (verde) de la sesión, con una X para
 /// cerrarlo. No ocupa lugar si no hay nada que mostrar.
 class SessionBanner extends StatelessWidget {
-  const SessionBanner({super.key, required this.session});
+  const SessionBanner({super.key, this.session});
 
-  final SessionViewModel session;
+  final SessionViewModel? session;
 
   @override
   Widget build(BuildContext context) {
-    final error = session.error;
-    final notice = session.notice;
+    final effectiveSession = session ?? SessionScope.of(context);
+    final error = effectiveSession.error;
+    final notice = effectiveSession.notice;
     final message = error ?? notice;
     if (message == null) return const SizedBox.shrink();
 
@@ -104,7 +106,7 @@ class SessionBanner extends StatelessWidget {
             tooltip: 'Cerrar aviso',
             icon: const Icon(Icons.close, size: 18),
             color: AppTheme.textSecondary,
-            onPressed: session.clearMessages,
+            onPressed: effectiveSession.clearMessages,
           ),
         ],
       ),

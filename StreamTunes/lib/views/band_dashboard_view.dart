@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/band.dart';
 import '../models/song.dart';
 import '../services/dispositivo_capacidades.dart';
 import '../theme/app_theme.dart';
 import '../view_models/band_dashboard_view_model.dart';
+import '../widgets/empty_state_view.dart';
 import '../widgets/player_bar.dart';
 import '../widgets/repositories_scope.dart';
 import '../widgets/session_scope.dart';
@@ -12,10 +15,6 @@ import 'band_public_view.dart';
 import 'upload_view.dart';
 
 /// Panel privado de gestión para miembros de una banda ("Mi banda").
-///
-/// Permite ver el estado de moderación, controlar el cupo de subida (X/$kMaxSongsPerBand temas),
-/// calcular métricas avanzadas en segundo plano con Isolate (Criterio D3),
-/// consultar donaciones recibidas y acceder rápidamente a la subida o al perfil público.
 class BandDashboardView extends StatefulWidget {
   const BandDashboardView({super.key, required this.band, this.viewModel});
 
@@ -45,7 +44,9 @@ class _BandDashboardViewState extends State<BandDashboardView> {
         storageRepository: repos.storage,
       );
       _ownsViewModel = true;
-      _viewModel.load();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _viewModel.load();
+      });
     }
   }
 
@@ -159,6 +160,118 @@ class _BandDashboardViewState extends State<BandDashboardView> {
     );
   }
 
+  Widget _buildQrShareCard(BuildContext context, BandDashboardViewModel vm) {
+    return Card(
+      key: const ValueKey('band_qr_card'),
+      color: AppTheme.surfaceElevated,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 380;
+            final qrBox = Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: QrImageView(
+                data: vm.qrDeepLink,
+                version: QrVersions.auto,
+                size: 120,
+                backgroundColor: Colors.white,
+              ),
+            );
+            final infoCol = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.qr_code_2,
+                      color: AppTheme.primaryGreen,
+                      size: 20,
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'QR para tus recitales',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Se genera en tu celular sin señal. Quien lo escanee puede seguir a la banda al instante sin registrarse.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      key: const ValueKey('copy_qr_link_button'),
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        await Clipboard.setData(
+                          ClipboardData(text: vm.qrDeepLink),
+                        );
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Link copiado para compartir o imprimir.',
+                            ),
+                            backgroundColor: AppTheme.primaryGreen,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.copy, size: 16),
+                      label: const Text('Copiar link'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryGreen,
+                        side: const BorderSide(color: AppTheme.primaryGreen),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(child: qrBox),
+                  const SizedBox(height: 12),
+                  infoCol,
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                qrBox,
+                const SizedBox(width: 16),
+                Expanded(child: infoCol),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildMetricsSection(BandDashboardViewModel vm) {
     return Card(
       color: AppTheme.surfaceElevated,
@@ -174,7 +287,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Métricas en Segundo Plano (Isolate)',
+                    'Métricas de la banda',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 15,
@@ -186,7 +299,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Simulación de carga: generación y agregación de 50.000 eventos dentro del Isolate sin congelar la UI, junto al ranking real de play_events.',
+              'Totales calculados en el servidor a partir de las escuchas de tu público.',
               style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12,
@@ -203,7 +316,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                       CircularProgressIndicator(color: AppTheme.primaryGreen),
                       SizedBox(height: 10),
                       Text(
-                        'Procesando en Isolate...',
+                        'Consultando estadísticas...',
                         style: TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
@@ -220,30 +333,6 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (vm.metrics!.esSimulacion) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: Colors.amberAccent.withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: const Text(
-                          'Datos de demostración (benchmark Isolate 50k)',
-                          style: TextStyle(
-                            color: Colors.amberAccent,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
@@ -256,7 +345,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                           '${vm.metrics!.totalMinutos}m',
                         ),
                         _metricItem(
-                          'Días agregados',
+                          'Días activos',
                           '${vm.metrics!.reproduccionesPorDia.length}',
                         ),
                       ],
@@ -264,7 +353,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                     if (vm.metrics!.topTemas.isNotEmpty) ...[
                       const Divider(color: Colors.white12, height: 20),
                       const Text(
-                        'Top temas agregados (Isolate):',
+                        'Temas más escuchados:',
                         style: TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
@@ -301,7 +390,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                     ],
                     const Divider(color: Colors.white12, height: 20),
                     const Text(
-                      'Top Oyentes (play_events reales):',
+                      'Top Fans del período:',
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
@@ -311,14 +400,14 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                     const SizedBox(height: 6),
                     if (vm.metrics!.rankingOyentes.isEmpty)
                       const Text(
-                        'Sin eventos de reproducción reales registrados todavía.',
+                        'Todavía no hay reproducciones registradas para tu banda. ¡Compartí tu perfil para empezar a sumar minutos!',
                         style: TextStyle(
                           color: AppTheme.textMuted,
                           fontSize: 12,
                         ),
                       )
                     else
-                      for (final o in vm.metrics!.rankingOyentes.take(3))
+                      for (final o in vm.metrics!.rankingOyentes.take(5))
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 2),
                           child: Row(
@@ -335,9 +424,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                                 ),
                               ),
                               Text(
-                                o.ubicacion.isNotEmpty
-                                    ? '${o.minutos} min (${o.ubicacion})'
-                                    : '${o.minutos} min',
+                                '${o.minutos} min',
                                 style: const TextStyle(
                                   color: AppTheme.primaryGreen,
                                   fontSize: 11,
@@ -353,7 +440,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
               OutlinedButton.icon(
                 onPressed: vm.calculateMetrics,
                 icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Recalcular'),
+                label: const Text('Actualizar estadísticas'),
               ),
             ] else ...[
               ElevatedButton.icon(
@@ -364,7 +451,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                 onPressed: vm.calculateMetrics,
                 icon: const Icon(Icons.play_arrow, size: 18),
                 label: const Text(
-                  'Calcular estadísticas ahora',
+                  'Ver estadísticas ahora',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -467,7 +554,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
             onPressed: () => _showEditBandDialog(context, band),
             icon: const Icon(Icons.edit, size: 18),
             label: const Text(
-              'Editar datos y foto de la banda',
+              'Editar datos, foto y tienda de merch',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -476,11 +563,179 @@ class _BandDashboardViewState extends State<BandDashboardView> {
     );
   }
 
+  Future<void> _showAddEventDialog(BuildContext context, Band band) async {
+    final titleCtrl = TextEditingController();
+    final venueCtrl = TextEditingController();
+    final cityCtrl = TextEditingController(text: band.location);
+    var selectedDate = DateTime.now().add(const Duration(days: 7));
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppTheme.surfaceElevated,
+          title: const Text(
+            'Nueva fecha en agenda',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre del show *',
+                    hintText: 'Ej: Noche Under en el Sótano',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: venueCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Lugar / Espacio *',
+                    hintText: 'Ej: Club Cultural',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: cityCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(labelText: 'Ciudad'),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.calendar_today,
+                    color: AppTheme.primaryGreen,
+                  ),
+                  title: Text(
+                    'Fecha: ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: selectedDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 730)),
+                    );
+                    if (picked != null) {
+                      setDialogState(() {
+                        selectedDate = DateTime(
+                          picked.year,
+                          picked.month,
+                          picked.day,
+                          21,
+                          0,
+                        );
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () async {
+                if (titleCtrl.text.trim().length < 2 ||
+                    venueCtrl.text.trim().length < 2) {
+                  return;
+                }
+                final ok = await _viewModel.addEvent(
+                  title: titleCtrl.text.trim(),
+                  venue: venueCtrl.text.trim(),
+                  city: cityCtrl.text.trim(),
+                  eventDate: selectedDate,
+                );
+                if (dialogCtx.mounted && ok) {
+                  Navigator.pop(dialogCtx);
+                }
+              },
+              child: const Text('Guardar fecha'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addShowPhotoFlow(BuildContext context) async {
+    final img = await DispositivoCapacidades.actual.seleccionarFotoArchivo();
+    if (img == null || !context.mounted) return;
+    final captionCtrl = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceElevated,
+        title: const Text(
+          'Agregar foto de show',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                img.bytes,
+                height: 140,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: captionCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Descripción breve (opcional)',
+                hintText: 'Ej: Recital en Uniclub',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Subir foto'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _viewModel.addShowPhoto(img, caption: captionCtrl.text.trim());
+    }
+  }
+
   Future<void> _showEditBandDialog(BuildContext context, Band band) async {
     final nameController = TextEditingController(text: band.name);
     final genreController = TextEditingController(text: band.genre);
     final bioController = TextEditingController(text: band.bio);
     final locationController = TextEditingController(text: band.location);
+    final merchController = TextEditingController(text: band.merchUrl ?? '');
     final goalController = TextEditingController(
       text: band.donationGoal > 0 ? band.donationGoal.toInt().toString() : '',
     );
@@ -488,7 +743,6 @@ class _BandDashboardViewState extends State<BandDashboardView> {
     bool saving = false;
     String? localError;
 
-    final repos = RepositoriesScope.of(context);
     final session = SessionScope.maybeOf(context);
 
     await showDialog<void>(
@@ -535,7 +789,6 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                             ),
                           ),
                         ),
-                      // Portada de la banda
                       const Text(
                         'Foto / Portada de la banda',
                         style: TextStyle(
@@ -549,7 +802,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                         onTap: saving
                             ? null
                             : () async {
-                                final img = await DispositivoCapacidades()
+                                final img = await DispositivoCapacidades.actual
                                     .seleccionarFotoArchivo();
                                 if (img != null) {
                                   setDialogState(() {
@@ -650,7 +903,6 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Nombre
                       TextField(
                         controller: nameController,
                         style: const TextStyle(color: Colors.white),
@@ -660,7 +912,6 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // Género
                       TextField(
                         controller: genreController,
                         style: const TextStyle(color: Colors.white),
@@ -671,7 +922,6 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // Ubicación
                       TextField(
                         controller: locationController,
                         style: const TextStyle(color: Colors.white),
@@ -681,7 +931,6 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // Biografía
                       TextField(
                         controller: bioController,
                         style: const TextStyle(color: Colors.white),
@@ -692,7 +941,17 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // Meta de donación
+                      TextField(
+                        controller: merchController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText:
+                              'Link a tienda de merch (remeras, vinilos)',
+                          hintText: 'https://mitienda.com/banda',
+                          labelStyle: TextStyle(color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: goalController,
                         style: const TextStyle(color: Colors.white),
@@ -748,9 +1007,8 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                               location: locationController.text.trim(),
                               bio: bioController.text.trim(),
                               donationGoal: goal,
+                              merchUrl: merchController.text.trim(),
                               selectedImage: selectedImage,
-                              fallbackBandRepository: repos.bands,
-                              fallbackStorageRepository: repos.storage,
                             );
                             await session?.refreshMemberships();
                             _viewModel.load();
@@ -866,7 +1124,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'FOTO Y PERFIL DEL ARTISTA',
+                    'PERFIL DE LA BANDA',
                     style: TextStyle(
                       color: AppTheme.primaryGreen,
                       fontSize: 11,
@@ -909,7 +1167,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                     onPressed: () => _showEditBandDialog(context, band),
                     icon: const Icon(Icons.edit, size: 14),
                     label: const Text(
-                      'Cambiar foto y datos del artista',
+                      'Cambiar foto y datos',
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
@@ -919,6 +1177,205 @@ class _BandDashboardViewState extends State<BandDashboardView> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildEventsSection(
+    BuildContext context,
+    BandDashboardViewModel vm,
+    Band band,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            const Text(
+              'Agenda de fechas',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => _showAddEventDialog(context, band),
+              icon: const Icon(
+                Icons.add,
+                color: AppTheme.primaryGreen,
+                size: 18,
+              ),
+              label: const Text(
+                'Agregar fecha',
+                style: TextStyle(color: AppTheme.primaryGreen),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (vm.events.isEmpty)
+          Card(
+            color: AppTheme.surfaceElevated,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Todavía no cargaste próximos shows. Agregá una fecha para que tus fans sepan dónde tocás.',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+              ),
+            ),
+          )
+        else
+          Card(
+            color: AppTheme.surfaceElevated,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: vm.events.length,
+              separatorBuilder: (_, _) =>
+                  const Divider(color: Colors.white10, height: 1),
+              itemBuilder: (context, index) {
+                final ev = vm.events[index];
+                return ListTile(
+                  leading: const Icon(
+                    Icons.event,
+                    color: AppTheme.primaryGreen,
+                  ),
+                  title: Text(
+                    ev.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${ev.formattedDate} · ${ev.venue}${ev.city.isNotEmpty ? " (${ev.city})" : ""}',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.white54,
+                    ),
+                    onPressed: () => vm.deleteEvent(ev.id),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPhotosSection(BuildContext context, BandDashboardViewModel vm) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            const Text(
+              'Fotos de shows',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => _addShowPhotoFlow(context),
+              icon: const Icon(
+                Icons.add_a_photo,
+                color: AppTheme.primaryGreen,
+                size: 18,
+              ),
+              label: const Text(
+                'Subir foto',
+                style: TextStyle(color: AppTheme.primaryGreen),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (vm.photos.isEmpty)
+          Card(
+            color: AppTheme.surfaceElevated,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Subí fotos de tus recitales o ensayos para mostrarlas en la vista pública de compu y celu.',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 120,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: vm.photos.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final photo = vm.photos[index];
+                return Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        photo.photoUrl,
+                        width: 140,
+                        height: 120,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 140,
+                          height: 120,
+                          color: Colors.white10,
+                          child: const Icon(Icons.image, color: Colors.white38),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: Colors.black54,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(
+                            Icons.close,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                          onPressed: () => vm.deleteShowPhoto(photo.id),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 
@@ -1033,14 +1490,21 @@ class _BandDashboardViewState extends State<BandDashboardView> {
       return Card(
         color: AppTheme.surfaceElevated,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: const Padding(
-          padding: EdgeInsets.all(20),
-          child: Center(
-            child: Text(
-              'No hay canciones subidas aún.',
-              style: TextStyle(color: AppTheme.textMuted),
-            ),
-          ),
+        child: EmptyStateView(
+          icon: Icons.music_note,
+          title: 'Todavía no subiste ninguna canción',
+          description: 'Empezá a compartir tu música con tus fans.',
+          actionLabel: 'Subir mi primer tema',
+          onAction: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => UploadView(onSongUploaded: () => vm.load()),
+              ),
+            );
+          },
+          secondaryActionLabel: 'Recargar',
+          onSecondaryAction: () => vm.load(),
+          compact: true,
         ),
       );
     }
@@ -1088,8 +1552,8 @@ class _BandDashboardViewState extends State<BandDashboardView> {
     );
   }
 
-  Widget _buildTopListenersSection(BandDashboardViewModel vm) {
-    if (vm.topListeners.isEmpty) {
+  Widget _buildTopFansSection(BandDashboardViewModel vm) {
+    if (vm.topFans.isEmpty) {
       return Card(
         color: AppTheme.surfaceElevated,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1101,7 +1565,7 @@ class _BandDashboardViewState extends State<BandDashboardView> {
               SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Aún no hay suficientes reproducciones para calcular el ranking de oyentes.',
+                  'Aún no hay suficientes reproducciones para armar el Top 10 de fans.',
                   style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                 ),
               ),
@@ -1117,37 +1581,49 @@ class _BandDashboardViewState extends State<BandDashboardView> {
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        itemCount: vm.topListeners.length,
+        itemCount: vm.topFans.length,
         separatorBuilder: (_, _) =>
             const Divider(color: Colors.white10, height: 1),
         itemBuilder: (context, index) {
-          final listener = vm.topListeners[index];
-          final name = (listener['display_name'] as String?) ?? 'Oyente';
-          final minutes = (listener['minutes'] as num?)?.toInt() ?? 0;
-
-          final medal = index == 0
-              ? '🥇'
-              : index == 1
-              ? '🥈'
-              : index == 2
-              ? '🥉'
-              : '#${index + 1}';
+          final fan = vm.topFans[index];
+          final hasAvatar =
+              fan.isPublic &&
+              fan.avatarUrl != null &&
+              fan.avatarUrl!.isNotEmpty;
 
           return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: AppTheme.surface,
-              child: Text(medal, style: const TextStyle(fontSize: 14)),
-            ),
+            leading: hasAvatar
+                ? CircleAvatar(backgroundImage: NetworkImage(fan.avatarUrl!))
+                : CircleAvatar(
+                    backgroundColor: AppTheme.surface,
+                    child: Text(
+                      '#${index + 1}',
+                      style: const TextStyle(
+                        color: AppTheme.primaryGreen,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
             title: Text(
-              name,
+              fan.nombre,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
             ),
+            subtitle: fan.isPublic
+                ? const Text(
+                    'Perfil público activo',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                  )
+                : const Text(
+                    'Modo privacidad',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                  ),
             trailing: Text(
-              '$minutes min',
+              '${fan.minutos} min',
               style: const TextStyle(
                 color: AppTheme.primaryGreen,
                 fontWeight: FontWeight.bold,
@@ -1225,7 +1701,6 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                   children: [
                     _buildStatusBanner(activeBand.status),
                     _buildArtistProfileCard(context, activeBand),
-                    // Tarjetas de resumen
                     if (isWide)
                       Row(
                         children: [
@@ -1297,11 +1772,13 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                       ),
                     const SizedBox(height: 16),
                     _buildQuickActions(context, activeBand),
+                    const SizedBox(height: 16),
+                    _buildQrShareCard(context, _viewModel),
                     const SizedBox(height: 20),
                     _buildMetricsSection(_viewModel),
                     const SizedBox(height: 20),
                     const Text(
-                      'Top oyentes del mes',
+                      'Top 10 fans en vivo',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -1309,7 +1786,11 @@ class _BandDashboardViewState extends State<BandDashboardView> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    _buildTopListenersSection(_viewModel),
+                    _buildTopFansSection(_viewModel),
+                    const SizedBox(height: 20),
+                    _buildEventsSection(context, _viewModel, activeBand),
+                    const SizedBox(height: 20),
+                    _buildPhotosSection(context, _viewModel),
                     const SizedBox(height: 20),
                     const Text(
                       'Álbumes de la banda',

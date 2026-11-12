@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../view_models/library_view_model.dart';
+import '../widgets/empty_state_view.dart';
 import '../widgets/library_scope.dart';
 import '../widgets/song_tile.dart';
 import 'session_gate.dart';
@@ -102,6 +103,16 @@ class LibraryView extends StatelessWidget {
                   ),
                 ],
               ),
+            );
+          }
+
+          if (playlists.isEmpty) {
+            return EmptyStateView(
+              icon: Icons.queue_music,
+              title: 'Todavía no armaste ninguna playlist',
+              description: 'Guardá tus canciones favoritas para escucharlas cuando quieras.',
+              actionLabel: 'Crear mi primera playlist',
+              onAction: () => _showNewPlaylistDialog(context, lib),
             );
           }
 

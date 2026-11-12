@@ -3,15 +3,41 @@ import 'dart:async';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
-/// Servicio de audio real que encapsula [AudioPlayer] de `just_audio`
-/// y maneja interrupciones de llamadas telefónicas con `audio_session` (Criterio E3).
+/// Servicio de audio que encapsula [AudioPlayer] de `just_audio`, reproducción en
+/// segundo plano con pantalla bloqueada en Android (`just_audio_background`),
+/// precarga de la siguiente pista e interrupciones de llamadas vía `audio_session`.
+///
+/// Limitación documentada en Web (PWA): los navegadores web no exponen eventos
+/// del sistema operativo para llamadas telefónicas entrantes; en Android sí
+/// funcionan mediante el foco de audio del sistema (`AudioSessionConfiguration.music()`).
 class AudioService {
-  AudioPlayer? _player;
-  AudioSession? _session;
-  StreamSubscription? _interruptionSubscription;
+  static bool _backgroundInitialized = false;
 
-  /// Política de reproducción: si se reanuda automáticamente tras una llamada o no.
+  /// Inicializa el servicio foreground en Android para que la música siga sonando
+  /// con la pantalla bloqueada y muestre controles en la notificación multimedia.
+  static Future<void> initBackgroundPlayback() async {
+    if (_backgroundInitialized || kIsWeb) return;
+    try {
+      await JustAudioBackground.init(
+        androidNotificationChannelId: 'com.streamtunes.app.channel.audio',
+        androidNotificationChannelName: 'Reproducción de StreamTunes',
+        androidNotificationOngoing: true,
+      );
+      _backgroundInitialized = true;
+    } catch (e) {
+      debugPrint('JustAudioBackground no disponible en este entorno: $e');
+    }
+  }
+
+  AudioPlayer? _player;
+  AudioPlayer? _preloadPlayer;
+  AudioSession? _session;
+  StreamSubscription<AudioInterruptionEvent>? _interruptionSubscription;
+  String? _preloadedUrl;
+
+  /// Política de reproducción: reanuda automáticamente tras finalizar una llamada.
   final bool reanudarTrasLlamada;
 
   final VoidCallback? onInterruptionPause;
@@ -28,7 +54,8 @@ class AudioService {
 
   AudioPlayer get player => _player ??= AudioPlayer();
 
-  /// Inicializa la sesión de audio y escucha eventos de interrupción (llamadas, alarmas).
+  /// Inicializa la sesión de audio y escucha eventos de foco/interrupción
+  /// (llamadas telefónicas, alarmas en Android).
   Future<void> initSession() async {
     try {
       _session = await AudioSession.instance;
@@ -63,24 +90,63 @@ class AudioService {
     }
   }
 
-  /// Streams directos del reproductor subyacente para sincronizar UI y fin de tema
+  /// Streams directos del reproductor subyacente para sincronizar UI y fin de tema.
   Stream<Duration> get positionStream => player.positionStream;
   Stream<Duration?> get durationStream => player.durationStream;
   Stream<PlayerState> get playerStateStream => player.playerStateStream;
-  Duration? get currentDuration => _player?.duration;
   Duration get currentPosition => _player?.position ?? Duration.zero;
 
-  /// Carga y reproduce una URL de audio pública.
-  Future<void> playUrl(String url) async {
+  /// Carga y reproduce una URL de audio pública, adjuntando metadatos para pantalla
+  /// bloqueada en Android cuando `just_audio_background` está activo.
+  Future<void> playUrl(
+    String url, {
+    String? songId,
+    String? title,
+    String? artist,
+    String? album,
+    String? coverUrl,
+  }) async {
     try {
-      // Detener cualquier reproducción previa inmediatamente
       await player.stop();
-      await player.setUrl(url);
+      if (_backgroundInitialized) {
+        final artUri = (coverUrl != null && coverUrl.startsWith('http'))
+            ? Uri.tryParse(coverUrl)
+            : null;
+        await player.setAudioSource(
+          AudioSource.uri(
+            Uri.parse(url),
+            tag: MediaItem(
+              id: songId ?? url,
+              title: title ?? 'StreamTunes',
+              artist: artist ?? 'Banda independiente',
+              album: album,
+              artUri: artUri,
+            ),
+          ),
+        );
+      } else {
+        await player.setUrl(url);
+      }
       await player.play();
     } catch (e) {
       debugPrint('AudioService: error al cargar URL "$url": $e');
-      // En caso de fallo (ej. 404), detener el reproductor para no dejar sonando el tema previo
-      await player.stop();
+      try {
+        await player.stop();
+      } catch (_) {}
+    }
+  }
+
+  /// Precarga/pre-bufferea la siguiente canción en segundo plano para tolerar
+  /// cortes breves de señal (ej. túneles o sótanos sin recepción continua).
+  Future<void> precargarSiguiente(String? url) async {
+    if (url == null || url.isEmpty || url == _preloadedUrl) return;
+    _preloadedUrl = url;
+    try {
+      _preloadPlayer ??= AudioPlayer();
+      await _preloadPlayer!.setVolume(0);
+      await _preloadPlayer!.setUrl(url, preload: true);
+    } catch (e) {
+      debugPrint('AudioService: precarga opcional omitida ($url): $e');
     }
   }
 
@@ -111,5 +177,6 @@ class AudioService {
   void dispose() {
     _interruptionSubscription?.cancel();
     _player?.dispose();
+    _preloadPlayer?.dispose();
   }
 }

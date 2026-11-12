@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streamtunes/models/band.dart';
 import 'package:streamtunes/models/donation.dart';
+import 'package:streamtunes/models/metricas_artista.dart';
 import 'package:streamtunes/models/report.dart';
 import 'package:streamtunes/repositories/app_repositories.dart';
 import 'package:streamtunes/repositories/fake/fake_auth_repository.dart';
@@ -19,6 +21,10 @@ import 'package:streamtunes/widgets/repositories_scope.dart';
 import 'package:streamtunes/widgets/session_scope.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   group('Fase 6: Donaciones en vivo y tope de gastos', () {
     test(
       'FakeDonationRepository emite donaciones en tiempo real por stream',
@@ -93,11 +99,18 @@ void main() {
     });
   });
 
-  group('Fase 6: Estadísticas y Top Listeners', () {
-    test('BandDashboardViewModel carga ranking de oyentes y reacciona a donaciones', () async {
+  group('Fase 6: Estadísticas y Top Fans', () {
+    test('BandDashboardViewModel carga ranking de fans opt-in y reacciona a donaciones', () async {
       final songRepo = FakeSongRepository();
       final donationRepo = FakeDonationRepository();
-      final bandRepo = FakeBandRepository();
+      final bandRepo = FakeBandRepository(
+        initialTopFans: {
+          'band_dash': const [
+            OyenteTop(nombre: 'Caro Gómez', minutos: 142, isPublic: true),
+            OyenteTop(nombre: 'Oculto', minutos: 95, isPublic: false),
+          ],
+        },
+      );
       final band = Band(
         id: 'band_dash',
         slug: 'band-dash',
@@ -114,9 +127,10 @@ void main() {
       );
 
       await vm.load();
-      expect(vm.topListeners.isNotEmpty, isTrue);
-      expect(vm.topListeners.first['display_name'], 'Caro Gómez');
-      expect(vm.topListeners.first['minutes'], 142);
+      expect(vm.topFans.length, 2);
+      expect(vm.topFans.first.nombre, 'Caro Gómez');
+      expect(vm.topFans.first.minutos, 142);
+      expect(vm.topFans.last.nombre, 'Fan anónimo');
 
       // Nueva donación
       await donationRepo.addDonation(

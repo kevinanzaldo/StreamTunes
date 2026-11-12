@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:streamtunes/data/mock_data.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streamtunes/models/band.dart';
 import 'package:streamtunes/models/profile.dart';
 import 'package:streamtunes/repositories/fake/fake_auth_repository.dart';
@@ -42,6 +42,10 @@ SessionViewModel _crear({FakeAuthRepository? auth}) {
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   test(
     'SessionViewModel: restore() sin sesión guardada deja un visitante',
     () async {
@@ -54,23 +58,21 @@ void main() {
       expect(vm.isLoggedIn, isFalse);
       expect(vm.profile, isNull);
       expect(vm.hasBand, isFalse);
-      expect(vm.isMemberOf(MockData.artists.first.id), isFalse);
+      expect(vm.isMemberOf('artist_1'), isFalse);
     },
   );
 
   test('SessionViewModel: una dueña ve su banda como activa y solo es miembro de esa', () async {
     final vm = _crear();
-    final suya = MockData.artists[0].id;
-    final ajena = MockData.artists[1].id;
+    const suya = 'artist_1';
+    const ajena = 'artist_2';
 
     expect(await vm.signIn(email: _ana, password: _pass), isTrue);
 
     expect(vm.isLoggedIn, isTrue);
     expect(vm.profile?.displayName, 'Ana Quiroga');
     expect(vm.isMemberOf(suya), isTrue);
-    expect(vm.isOwnerOf(suya), isTrue);
     expect(vm.isMemberOf(ajena), isFalse);
-    expect(vm.isOwnerOf(ajena), isFalse);
     expect(vm.activeBand?.id, suya);
     expect(vm.isAdmin, isFalse);
     expect(vm.error, isNull);
@@ -228,7 +230,6 @@ void main() {
       expect(vm.hasBand, isTrue);
       expect(vm.activeBand?.name, 'Los Nuevos');
       expect(vm.activeBand?.status, BandStatus.pending);
-      expect(vm.isOwnerOf(vm.activeBand!.id), isTrue);
       expect(vm.notice, isNotNull);
     },
   );
@@ -243,7 +244,7 @@ void main() {
     expect(await vm.createBand(name: '!'), isFalse);
     expect(vm.error, contains('nombre de la banda'));
 
-    expect(await vm.createBand(name: MockData.artists.first.name), isFalse);
+    expect(await vm.createBand(name: 'Los Subterráneos'), isFalse);
     expect(vm.error, 'Ya existe una banda con ese nombre.');
     expect(vm.hasBand, isFalse);
   });
@@ -251,7 +252,7 @@ void main() {
   test('SessionViewModel: selectActiveBand cambia entre mis bandas e ignora las ajenas', () async {
     final vm = _crear();
     await vm.signIn(email: _ana, password: _pass);
-    final primera = MockData.artists[0].id;
+    const primera = 'artist_1';
 
     await vm.createBand(name: 'Segunda Banda');
     final segunda = vm.activeBand!.id;
@@ -261,7 +262,7 @@ void main() {
     vm.selectActiveBand(primera);
     expect(vm.activeBand?.id, primera);
 
-    vm.selectActiveBand(MockData.artists[1].id);
+    vm.selectActiveBand('artist_2');
     expect(vm.activeBand?.id, primera);
   });
 

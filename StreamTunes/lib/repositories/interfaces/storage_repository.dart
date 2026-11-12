@@ -9,6 +9,7 @@ abstract class StorageRepository {
     required String songId,
     required Uint8List bytes,
     required String fileName,
+    void Function(double progress)? onProgress,
   });
 
   /// Sube una imagen de portada al bucket `covers`.
@@ -17,6 +18,7 @@ abstract class StorageRepository {
     required String bandId,
     required Uint8List bytes,
     required String fileName,
+    void Function(double progress)? onProgress,
   });
 
   /// Obtiene la URL pública de lectura directa de un archivo de audio.
@@ -24,4 +26,7 @@ abstract class StorageRepository {
 
   /// Obtiene la URL pública de una portada.
   String getCoverPublicUrl(String path);
+
+  /// Indica si es una implementación de prueba/mock.
+  bool get isMock => false;
 }

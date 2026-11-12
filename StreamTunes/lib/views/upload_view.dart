@@ -22,7 +22,8 @@ class UploadView extends StatefulWidget {
 class _UploadViewState extends State<UploadView> {
   final _titleController = TextEditingController();
   final _albumController = TextEditingController();
-  late final UploadViewModel _viewModel;
+  final _lyricsController = TextEditingController();
+  late UploadViewModel _viewModel;
   bool _ownsViewModel = false;
   bool _subirEnSegundoPlano = true;
   bool _loadedCupos = false;
@@ -58,6 +59,7 @@ class _UploadViewState extends State<UploadView> {
   void dispose() {
     _titleController.dispose();
     _albumController.dispose();
+    _lyricsController.dispose();
     if (_ownsViewModel) {
       _viewModel.dispose();
     }
@@ -67,12 +69,14 @@ class _UploadViewState extends State<UploadView> {
   Future<void> _submit() async {
     final title = _titleController.text.trim();
     final album = _albumController.text.trim();
+    final lyricsLrc = _lyricsController.text.trim();
 
     final band = SessionScope.maybeRead(context)?.activeBand;
 
     final success = await _viewModel.publicarTema(
       titulo: title,
       album: album,
+      lyricsLrc: lyricsLrc,
       artistId: band?.id,
       artistName: band?.name,
       subirEnSegundoPlano: _subirEnSegundoPlano,
@@ -100,6 +104,7 @@ class _UploadViewState extends State<UploadView> {
       );
       _titleController.clear();
       _albumController.clear();
+      _lyricsController.clear();
       _viewModel.limpiarFormulario();
       widget.onSongUploaded?.call();
     } else if (_viewModel.error != null) {
@@ -201,7 +206,7 @@ class _UploadViewState extends State<UploadView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Límite inicial: máximo $kMaxAlbumsPerBand álbumes o $kMaxSongsPerBand temas por banda.\nFormato: MP3 a 192 kbps.',
+                      'Límite inicial: máximo $kMaxAlbumsPerBand álbumes o $kMaxSongsPerBand temas por banda.\nFormatos: MP3, M4A o WAV hasta ${kMaxAudioFileSizeBytes ~/ (1024 * 1024)} MB por archivo.',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 13,
@@ -418,9 +423,9 @@ class _UploadViewState extends State<UploadView> {
               ],
               const SizedBox(height: 16),
 
-              // Foto de portada (Patrón Capabilities y Policies - Bloque 3)
+              // Foto de portada del tema o disco (Patrón Capabilities y Policies)
               const Text(
-                'Foto de portada',
+                'Portada del tema o disco',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -545,9 +550,109 @@ class _UploadViewState extends State<UploadView> {
                   ),
                 ),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Notificación post-publicación en segundo plano con Workmanager (Bloque 6)
+              // Letra sincronizada opcional (formato LRC)
+              const Text(
+                'Letra sincronizada (opcional, formato LRC)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _lyricsController,
+                maxLines: 3,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: '[00:12.50] Ejemplo primera línea...\n[00:18.00] Segunda línea...',
+                  hintStyle: const TextStyle(color: AppTheme.textMuted),
+                  helperText: 'Si no cargás letra, el reproductor muestra solo la portada gigante.',
+                  helperStyle: const TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                  ),
+                  filled: true,
+                  fillColor: AppTheme.surfaceElevated,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              if (_viewModel.mostrarAdvertenciaPestanaWeb &&
+                  _viewModel.subiendo) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withAlpha(30),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.withAlpha(110)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.tab_unselected, color: Colors.amber, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'No cierres esta pestaña mientras se sube el tema.',
+                          style: TextStyle(
+                            color: Colors.amber,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              if (_viewModel.subiendo) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    key: const ValueKey('upload_progress_bar'),
+                    value: _viewModel.uploadProgress,
+                    minHeight: 8,
+                    backgroundColor: Colors.white12,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppTheme.primaryGreen,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Subiendo... ${(_viewModel.uploadProgress * 100).round()}%',
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              if (!_viewModel.subiendo &&
+                  _viewModel.error != null &&
+                  _viewModel.puedeReintentar) ...[
+                OutlinedButton.icon(
+                  key: const ValueKey('upload_retry_button'),
+                  onPressed: _viewModel.reintentarSubida,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reintentar subida'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orangeAccent,
+                    side: const BorderSide(color: Colors.orangeAccent),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // Notificación post-publicación en segundo plano
               SwitchListTile(
                 value: _subirEnSegundoPlano,
                 onChanged: (val) {
@@ -557,16 +662,21 @@ class _UploadViewState extends State<UploadView> {
                 },
                 contentPadding: EdgeInsets.zero,
                 title: const Text(
-                  'Notificación en segundo plano (Workmanager)',
+                  'Avisarme al terminar la publicación',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
                 ),
-                subtitle: const Text(
-                  'Programa el aviso nativo tras publicar el tema en Android/iOS (la subida ocurre en primer plano).',
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                subtitle: Text(
+                  _viewModel.soportaSegundoPlanoNativo
+                      ? 'Te enviamos una notificación en el celular apenas quede publicado.'
+                      : 'En navegador web dejá la pestaña abierta hasta que termine la subida.',
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                  ),
                 ),
                 activeTrackColor: AppTheme.primaryGreen,
               ),

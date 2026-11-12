@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:streamtunes/data/mock_data.dart';
 import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_playlist_repository.dart';
@@ -15,7 +14,7 @@ import 'package:streamtunes/widgets/reproductor_scope.dart';
 import 'package:streamtunes/widgets/song_tile.dart';
 
 void main() {
-  test('ReproductorViewModel + AudioService: pausa y reanuda ante interrupciones de llamada', () {
+  test('ReproductorViewModel + AudioService: pausa y reanuda ante interrupciones de llamada', () async {
     bool interrupcionPausa = false;
     bool interrupcionReanuda = false;
 
@@ -38,7 +37,7 @@ void main() {
       songRepository: songRepo,
     );
 
-    final song = MockData.songs.first;
+    final song = (await songRepo.getLatestSongs()).first;
     repVm.play(song);
     expect(repVm.isPlaying, isTrue);
 
@@ -64,11 +63,11 @@ void main() {
     );
 
     await vm.load();
-    expect(vm.latestSongs, isNotEmpty);
-    final total = vm.latestSongs.length;
+    expect(vm.filteredSongs, isNotEmpty);
+    final total = vm.filteredSongs.length;
 
     // Búsqueda por título
-    final targetSong = vm.latestSongs.first;
+    final targetSong = vm.filteredSongs.first;
     vm.setSearchQuery(targetSong.title);
     expect(vm.filteredSongs, hasLength(greaterThanOrEqualTo(1)));
     expect(vm.filteredSongs.first.title, targetSong.title);
@@ -139,7 +138,7 @@ void main() {
   testWidgets(
     'SongTile: permite crear nueva playlist desde el diálogo de agregar',
     (WidgetTester tester) async {
-      final song = MockData.songs.first;
+      final song = (await FakeSongRepository().getLatestSongs()).first;
       final libRepo = FakePlaylistRepository();
       final lib = LibraryViewModel(
         playlistRepository: libRepo,

@@ -145,6 +145,45 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<Profile> signInAnonymously() async {
+    if (_current != null) return _current!.profile;
+    _newUsers++;
+    final user = _FakeUser(
+      profile: Profile(
+        id: 'user_anon_$_newUsers',
+        displayName: 'Fan anónimo',
+        isPublicProfile: false,
+        createdAt: DateTime.now(),
+      ),
+      email: 'anon_$_newUsers@streamtunes.local',
+      password: demoPassword,
+    );
+    _users.add(user);
+    _current = user;
+    return user.profile;
+  }
+
+  @override
+  Future<Profile> updateProfile(Profile profile) async {
+    for (var i = 0; i < _users.length; i++) {
+      if (_users[i].profile.id == profile.id) {
+        final updated = _FakeUser(
+          profile: profile,
+          email: _users[i].email,
+          password: _users[i].password,
+          isAdmin: _users[i].isAdmin,
+        );
+        _users[i] = updated;
+        if (_current?.profile.id == profile.id) {
+          _current = updated;
+        }
+        return profile;
+      }
+    }
+    return profile;
+  }
+
+  @override
   Future<void> sendPasswordReset(String email) async {
     // En la demo no se envía ningún mail.
   }

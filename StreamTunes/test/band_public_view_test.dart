@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streamtunes/config/app_constants.dart';
-import 'package:streamtunes/data/mock_data.dart';
 import 'package:streamtunes/models/band.dart';
 import 'package:streamtunes/models/song.dart';
 import 'package:streamtunes/repositories/app_repositories.dart';
@@ -92,6 +92,10 @@ class _FlakySongRepo implements SongRepository {
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   test(
     'BandPublicViewModel: carga y ordena temas por reproducciones descendente',
     () async {
@@ -174,7 +178,10 @@ void main() {
     await vm.load();
 
     final player = ReproductorViewModel();
-    final library = LibraryViewModel();
+    final library = LibraryViewModel(
+      playlistRepository: FakePlaylistRepository(),
+      donationRepository: FakeDonationRepository(),
+    );
     addTearDown(player.dispose);
     addTearDown(library.dispose);
 
@@ -217,7 +224,10 @@ void main() {
       await vm.load();
 
       final player = ReproductorViewModel();
-      final library = LibraryViewModel();
+      final library = LibraryViewModel(
+        playlistRepository: FakePlaylistRepository(),
+        donationRepository: FakeDonationRepository(),
+      );
       addTearDown(player.dispose);
       addTearDown(library.dispose);
 
@@ -247,7 +257,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final song = MockData.songs.first;
+      final song = (await FakeSongRepository().getLatestSongs()).first;
       final repos = AppRepositories(
         auth: FakeAuthRepository(),
         songs: FakeSongRepository(),
@@ -256,7 +266,10 @@ void main() {
         donations: FakeDonationRepository(),
       );
       final player = ReproductorViewModel()..play(song);
-      final library = LibraryViewModel();
+      final library = LibraryViewModel(
+        playlistRepository: FakePlaylistRepository(),
+        donationRepository: FakeDonationRepository(),
+      );
       addTearDown(player.dispose);
       addTearDown(library.dispose);
 
@@ -267,9 +280,7 @@ void main() {
             reproductor: player,
             child: LibraryScope(
               library: library,
-              child: MaterialApp(
-                home: Scaffold(body: NowPlayingModal(reproductor: player)),
-              ),
+              child: const MaterialApp(home: Scaffold(body: NowPlayingModal())),
             ),
           ),
         ),

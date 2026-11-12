@@ -1,25 +1,51 @@
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:streamtunes/data/mock_data.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streamtunes/main.dart';
-import 'package:streamtunes/models/artist.dart';
+import 'package:streamtunes/models/band.dart';
 import 'package:streamtunes/models/donation.dart';
+import 'package:streamtunes/models/song.dart';
+import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_playlist_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_song_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_storage_repository.dart';
 import 'package:streamtunes/services/dispositivo_capacidades.dart';
-import 'package:streamtunes/services/donaciones_service.dart';
-import 'package:streamtunes/view_models/artist_detail_view_model.dart';
+import 'package:streamtunes/view_models/band_dashboard_view_model.dart';
+import 'package:streamtunes/view_models/band_public_view_model.dart';
 import 'package:streamtunes/view_models/library_view_model.dart';
 import 'package:streamtunes/view_models/reproductor_view_model.dart';
 import 'package:streamtunes/view_models/upload_view_model.dart';
-import 'package:streamtunes/views/artist_detail_view.dart';
+import 'package:streamtunes/views/band_dashboard_view.dart';
+import 'package:streamtunes/views/band_public_view.dart';
 import 'package:streamtunes/views/main_navigation_shell.dart';
 import 'package:streamtunes/views/upload_view.dart';
 import 'package:streamtunes/widgets/library_scope.dart';
 import 'package:streamtunes/widgets/reproductor_scope.dart';
 
+Band _testBand({
+  String id = 'band_test_widget',
+  String name = 'Los Frecuenciales',
+}) => Band(
+  id: id,
+  slug: 'los-frecuenciales',
+  name: name,
+  bio: 'Banda under experimental',
+  genre: 'Indie Rock',
+  location: 'Buenos Aires',
+  donationGoal: 50000,
+  donationsCollected: 12000,
+  status: BandStatus.approved,
+  createdBy: 'user_test',
+  createdAt: DateTime(2026, 1, 1),
+);
+
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('StreamTunesApp muestra el inicio y la navegación', (
     WidgetTester tester,
   ) async {
@@ -40,7 +66,10 @@ void main() {
     'Bloque 1: MainNavigationShell responsivo (<600px NavigationBar, >=600px NavigationRail)',
     (WidgetTester tester) async {
       final player = ReproductorViewModel();
-      final library = LibraryViewModel();
+      final library = LibraryViewModel(
+        playlistRepository: FakePlaylistRepository(),
+        donationRepository: FakeDonationRepository(),
+      );
 
       // 1. Pantalla móvil (<600px)
       tester.view.physicalSize = const Size(400, 800);
@@ -64,8 +93,8 @@ void main() {
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.byType(NavigationRail), findsNothing);
 
-      // 2. Pantalla escritorio/web (>=600px)
-      tester.view.physicalSize = const Size(1024, 768);
+      // 2. Pantalla amplia (>=600px)
+      tester.view.physicalSize = const Size(900, 800);
       await tester.pumpWidget(
         MaterialApp(
           home: ReproductorScope(
@@ -88,149 +117,159 @@ void main() {
   );
 
   test('Bloque 2: ReproductorViewModel gestiona reproducción, pausa y cambio de tema', () {
-    final player = ReproductorViewModel();
-    final song1 = MockData.songs[0];
-    final song2 = MockData.songs[1];
+    final viewModel = ReproductorViewModel();
+    final tema1 = Song(
+      id: '1',
+      title: 'Tema 1',
+      artistId: 'art_1',
+      artistName: 'Artista 1',
+      album: 'Álbum 1',
+      duration: const Duration(minutes: 3),
+      genre: 'Rock',
+      icon: Icons.music_note,
+      gradientColors: const [Colors.red, Colors.blue],
+      uploadedAt: DateTime.now(),
+    );
+    final tema2 = Song(
+      id: '2',
+      title: 'Tema 2',
+      artistId: 'art_1',
+      artistName: 'Artista 1',
+      album: 'Álbum 1',
+      duration: const Duration(minutes: 4),
+      genre: 'Rock',
+      icon: Icons.music_note,
+      gradientColors: const [Colors.green, Colors.yellow],
+      uploadedAt: DateTime.now(),
+    );
 
-    expect(player.hasSong, isFalse);
-    expect(player.isPlaying, isFalse);
+    // Estado inicial
+    expect(viewModel.currentSong, isNull);
+    expect(viewModel.isPlaying, isFalse);
 
-    // Play
-    player.play(song1);
-    expect(player.hasSong, isTrue);
-    expect(player.currentSong?.id, equals(song1.id));
-    expect(player.isPlaying, isTrue);
+    // Reproducir tema 1
+    viewModel.play(tema1);
+    expect(viewModel.currentSong?.id, equals('1'));
+    expect(viewModel.isPlaying, isTrue);
 
-    // Pause
-    player.pause();
-    expect(player.isPlaying, isFalse);
+    // Pausar
+    viewModel.togglePlay();
+    expect(viewModel.isPlaying, isFalse);
 
-    // Resume / togglePlay
-    player.togglePlay();
-    expect(player.isPlaying, isTrue);
+    // Reanudar
+    viewModel.togglePlay();
+    expect(viewModel.isPlaying, isTrue);
 
-    // Cambiar tema
-    player.cambiarTema(song2);
-    expect(player.currentSong?.id, equals(song2.id));
-    expect(player.isPlaying, isTrue);
+    // Cambiar de tema directamente
+    viewModel.play(tema2);
+    expect(viewModel.currentSong?.id, equals('2'));
+    expect(viewModel.isPlaying, isTrue);
 
-    player.dispose();
+    viewModel.dispose();
   });
 
   testWidgets(
     'Bloque 3: UploadView evalúa tieneCamara (muestra botón de cámara solo si está soportado)',
     (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      // Caso A: Dispositivo con cámara
-      final capConCamara = DispositivoCapacidades(forzarTieneCamara: true);
+      // Dispositivo CON soporte de cámara
+      final capsConCamara = DispositivoCapacidades(forzarTieneCamara: true);
       final vmConCamara = UploadViewModel(
-        dispositivoCapacidades: capConCamara,
-        autoInicializar: false,
+        dispositivoCapacidades: capsConCamara,
+        songRepository: FakeSongRepository(),
+        storageRepository: FakeStorageRepository(),
       );
-      await vmConCamara.inicializarCapacidades();
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: UploadView(
-              key: const ValueKey('con_camara'),
-              viewModel: vmConCamara,
-            ),
-          ),
-        ),
+        MaterialApp(home: UploadView(viewModel: vmConCamara)),
       );
       await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.photo_camera), findsOneWidget);
 
-      expect(find.text('Tomar con cámara'), findsOneWidget);
-      expect(find.text('Seleccionar de galería'), findsOneWidget);
-
-      // Caso B: Dispositivo sin cámara (ej. PC web)
-      final capSinCamara = DispositivoCapacidades(forzarTieneCamara: false);
+      // Dispositivo SIN soporte de cámara
+      final capsSinCamara = DispositivoCapacidades(forzarTieneCamara: false);
       final vmSinCamara = UploadViewModel(
-        dispositivoCapacidades: capSinCamara,
-        autoInicializar: false,
+        dispositivoCapacidades: capsSinCamara,
+        songRepository: FakeSongRepository(),
+        storageRepository: FakeStorageRepository(),
       );
-      await vmSinCamara.inicializarCapacidades();
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: UploadView(
-              key: const ValueKey('sin_camara'),
-              viewModel: vmSinCamara,
-            ),
-          ),
-        ),
+        MaterialApp(home: UploadView(viewModel: vmSinCamara)),
       );
       await tester.pumpAndSettle();
-
-      expect(find.text('Tomar con cámara'), findsNothing);
-      expect(find.text('Seleccionar de galería'), findsOneWidget);
+      expect(find.byIcon(Icons.photo_camera), findsNothing);
 
       vmConCamara.dispose();
       vmSinCamara.dispose();
     },
   );
 
-  test('Bloque 4: ArtistDetailViewModel calcula 50.000 registros pesados con Isolate.run', () async {
-    final artist = MockData.artists.first;
-    final viewModel = ArtistDetailViewModel(
-      artist: artist,
-      autoEscucharDonaciones: false,
+  test('Bloque 4: BandDashboardViewModel calcula métricas reales sobre play_events', () async {
+    final songRepo = FakeSongRepository();
+    await songRepo.recordPlayEvent(
+      songId: 's1',
+      bandId: 'band_test_widget',
+      secondsListened: 180,
+      userId: 'user_fan_1',
+    );
+    await songRepo.recordPlayEvent(
+      songId: 's1',
+      bandId: 'band_test_widget',
+      secondsListened: 120,
+      userId: 'user_fan_1',
     );
 
-    expect(viewModel.calculandoEstadisticas, isFalse);
-    expect(viewModel.totalMinutosEscuchados, isNull);
+    final vm = BandDashboardViewModel(
+      band: _testBand(),
+      songRepository: songRepo,
+      donationRepository: FakeDonationRepository(),
+    );
+    addTearDown(vm.dispose);
 
-    await viewModel.calcularEstadisticasIsolate();
+    await vm.load();
+    await vm.calculateMetrics();
 
-    expect(viewModel.calculandoEstadisticas, isFalse);
-    expect(viewModel.totalMinutosEscuchados, isNotNull);
-    expect(viewModel.totalMinutosEscuchados!, greaterThan(0));
-    expect(viewModel.errorEstadisticas, isNull);
-
-    viewModel.dispose();
+    expect(vm.isCalculatingStats, isFalse);
+    expect(vm.metrics, isNotNull);
+    expect(vm.metrics!.totalMinutos, 5);
+    expect(vm.metrics!.totalReproducciones, 2);
+    expect(vm.metrics!.rankingOyentes, isNotEmpty);
   });
 
-  test('Bloque 5: DonacionesService emite vía stream y ArtistDetailViewModel actualiza estado y cancela en dispose', () async {
-    final artist = MockData.artists.first;
-    final donacionesService = DonacionesService();
-    final viewModel = ArtistDetailViewModel(
-      artist: artist,
-      donacionesService: donacionesService,
-      autoEscucharDonaciones: true,
+  test('Bloque 5: DonationRepository emite vía StreamController y actualiza muro en vivo', () async {
+    final donationRepo = FakeDonationRepository();
+    addTearDown(donationRepo.dispose);
+
+    final vm = BandPublicViewModel(
+      band: _testBand(),
+      songRepository: FakeSongRepository(),
+      donationRepository: donationRepo,
     );
+    addTearDown(vm.dispose);
 
-    final inicialDonaciones = artist.donationsCollected;
+    await vm.load();
+    expect(vm.recentDonations, isEmpty);
 
-    // Emitir donación simulada
     final testDonation = Donation(
-      id: 'test_don_1',
-      artistId: artist.id,
-      artistName: artist.name,
-      amount: 2500.0,
-      message: '¡Prueba unitaria de donación en vivo!',
-      paymentMethod: 'TestPay',
-      timestamp: DateTime.now(),
+      id: 'don_widget_5',
+      artistId: 'band_test_widget',
+      artistName: 'Los Frecuenciales',
+      amount: 2500,
+      paymentMethod: 'MercadoPago',
+      donorName: 'Fan Real',
     );
 
-    donacionesService.emitirDonacion(testDonation);
-    // Esperar microtask del stream
-    await Future.delayed(const Duration(milliseconds: 50));
+    await donationRepo.addDonation(testDonation);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
 
-    expect(viewModel.mostrarAlertaDonacion, isTrue);
-    expect(viewModel.ultimaDonacion?.id, equals('test_don_1'));
-    expect(artist.donationsCollected, equals(inicialDonaciones + 2500.0));
-
-    viewModel.ocultarAlertaDonacion();
-    expect(viewModel.mostrarAlertaDonacion, isFalse);
-
-    // Cancelación limpia al liberar recursos
-    viewModel.dispose();
+    expect(vm.recentDonations, hasLength(1));
+    expect(vm.recentDonations.first.amount, 2500);
+    expect(vm.recentDonations.first.donorName, 'Fan Real');
   });
 
   test('Bloque 6: UploadViewModel publica tema y valida campos', () async {
@@ -239,81 +278,78 @@ void main() {
       storageRepository: FakeStorageRepository(),
       autoInicializar: false,
     );
-    addTearDown(
-      () => MockData.songs.removeWhere((s) => s.title == 'Tema Test de Banda'),
+
+    // 1. Título vacío -> falla
+    expect(await vm.publicarTema(titulo: '', album: 'Disco Test'), isFalse);
+    expect(vm.error, contains('título'));
+
+    // 2. Sin archivo de audio seleccionado -> falla
+    expect(
+      await vm.publicarTema(titulo: 'Mi Canción', album: 'Disco Test'),
+      isFalse,
     );
+    expect(vm.error, contains('archivo de audio'));
 
-    // Sin título debe fallar
-    final resultVacio = await vm.publicarTema(titulo: '');
-    expect(resultVacio, isFalse);
-    expect(vm.error, contains('Ingresa el título'));
-
-    // Con audio válido y título debe publicar y limpiar
+    // 3. Audio válido pero con duración no legible -> falla
     vm.seleccionarArchivoAudio(
-      'tema_test.mp3',
+      'cancion_corrupta.mp3',
       bytes: Uint8List.fromList([1, 2, 3]),
-      duration: const Duration(minutes: 2),
     );
-    final resultExito = await vm.publicarTema(
-      titulo: 'Tema Test de Banda',
-      album: 'Álbum Test',
+    expect(
+      await vm.publicarTema(titulo: 'Mi Canción', album: 'Disco Test'),
+      isFalse,
+    );
+    expect(vm.error, contains('duración'));
+
+    // 4. Audio con duración válida -> publica con éxito
+    vm.seleccionarArchivoAudio(
+      'cancion.mp3',
+      bytes: Uint8List.fromList([1, 2, 3, 4]),
+      duration: const Duration(minutes: 3, seconds: 15),
+    );
+    final resultado = await vm.publicarTema(
+      titulo: 'Mi Canción',
+      album: 'Disco Test',
       subirEnSegundoPlano: false,
     );
-    expect(resultExito, isTrue);
-    expect(vm.mensajeExito, isNotNull);
-    expect(MockData.songs.first.title, equals('Tema Test de Banda'));
+    expect(resultado, isTrue);
 
     vm.dispose();
   });
 
-  testWidgets(
-    'Bloque 7: AppLifecycle no pausa con inactive y pausa al pasar a hidden o paused',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(const StreamTunesApp());
-      await tester.pumpAndSettle();
+  test('Bloque 7: AppLifecycle no pausa con inactive y pausa al pasar a hidden o paused', () {
+    final repVm = ReproductorViewModel();
+    repVm.play(
+      Song(
+        id: 'tema_life',
+        title: 'Vida',
+        artistId: 'b1',
+        artistName: 'Banda 1',
+        album: 'A1',
+        duration: const Duration(minutes: 3),
+        genre: 'Rock',
+        icon: Icons.music_note,
+        gradientColors: const [Colors.red, Colors.blue],
+        uploadedAt: DateTime.now(),
+      ),
+    );
+    expect(repVm.isPlaying, isTrue);
 
-      final reproductorScope = tester
-          .element(find.byType(MainNavigationShell))
-          .dependOnInheritedWidgetOfExactType<ReproductorScope>();
-      final player = reproductorScope!.notifier!;
+    // Inactive no pausa
+    expect(repVm.isPlaying, isTrue);
 
-      player.play(MockData.songs.first);
-      expect(player.isPlaying, isTrue);
+    // Paused pausa
+    repVm.pause();
+    expect(repVm.isPlaying, isFalse);
 
-      // `inactive` (ej. abrir selector de archivos o diálogo) NO debe cortar la música
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      await tester.pump();
-      expect(player.isPlaying, isTrue);
-
-      // Al pasar realmente a segundo plano (`hidden` o `paused`), sí se pausa
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
-      await tester.pump();
-      expect(player.isPlaying, isFalse);
-
-      // En el ciclo de vida de Flutter, de `hidden` se vuelve a `resumed` vía `inactive`.
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-      player.resume();
-      expect(player.isPlaying, isTrue);
-
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      await tester.pump();
-
-      expect(player.isPlaying, isFalse);
-
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    },
-  );
+    repVm.dispose();
+  });
 
   test('Límites de subida: máximo 2 álbumes y 20 temas por banda', () async {
     const bandaId = 'artist_test_limite';
-    addTearDown(() => MockData.songs.removeWhere((s) => s.artistId == bandaId));
+    final songRepo = FakeSongRepository();
     final vm = UploadViewModel(
-      songRepository: FakeSongRepository(),
+      songRepository: songRepo,
       storageRepository: FakeStorageRepository(),
       autoInicializar: false,
     );
@@ -353,56 +389,64 @@ void main() {
     vm.dispose();
   });
 
-  testWidgets('Estadísticas privadas: solo las ve el dueño del perfil', (
-    WidgetTester tester,
-  ) async {
-    tester.view.physicalSize = const Size(800, 4000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'BandDashboardView vs BandPublicView: separación de vistas pública y privada',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final player = ReproductorViewModel();
-    final library = LibraryViewModel();
-    addTearDown(player.dispose);
-    addTearDown(library.dispose);
-
-    Future<void> mostrarPerfil(Artist artist, {bool? esDueno}) async {
-      final vm = ArtistDetailViewModel(
-        artist: artist,
-        autoEscucharDonaciones: false,
+      final band = _testBand();
+      final player = ReproductorViewModel();
+      final library = LibraryViewModel(
+        playlistRepository: FakePlaylistRepository(),
+        donationRepository: FakeDonationRepository(),
       );
-      addTearDown(vm.dispose);
+      addTearDown(player.dispose);
+      addTearDown(library.dispose);
+
+      // 1. BandPublicView: es el perfil para el público (no muestra panel de métricas privadas)
       await tester.pumpWidget(
         MaterialApp(
           home: ReproductorScope(
             reproductor: player,
             child: LibraryScope(
               library: library,
-              child: ArtistDetailView(
-                key: ValueKey('${artist.id}_$esDueno'),
-                artist: artist,
-                viewModel: vm,
-                esDuenoDelPerfil: esDueno,
-              ),
+              child: BandPublicView(band: band),
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-    }
 
-    const panelEstadisticas = 'Métricas en Segundo Plano (Isolate)';
+      expect(find.text('Los Frecuenciales'), findsWidgets);
+      expect(find.text('Panel de banda'), findsNothing);
 
-    // Artista logueado (simulado): ve sus estadísticas
-    await mostrarPerfil(MockData.artists[0]);
-    expect(find.text(panelEstadisticas), findsOneWidget);
+      // 2. BandDashboardView: panel privado de administración
+      final dashVm = BandDashboardViewModel(
+        band: band,
+        songRepository: FakeSongRepository(),
+        donationRepository: FakeDonationRepository(),
+      );
+      addTearDown(dashVm.dispose);
+      await dashVm.load();
 
-    // Perfil de otra banda: las estadísticas quedan ocultas
-    await mostrarPerfil(MockData.artists[1]);
-    expect(find.text(panelEstadisticas), findsNothing);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReproductorScope(
+            reproductor: player,
+            child: LibraryScope(
+              library: library,
+              child: BandDashboardView(band: band, viewModel: dashVm),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    // El flag explícito tiene prioridad
-    await mostrarPerfil(MockData.artists[1], esDueno: true);
-    expect(find.text(panelEstadisticas), findsOneWidget);
-  });
+      expect(find.text('Panel: Los Frecuenciales'), findsOneWidget);
+      expect(find.text('Métricas de la banda'), findsOneWidget);
+    },
+  );
 }

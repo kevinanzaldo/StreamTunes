@@ -54,6 +54,13 @@ begin
    where band_id = 'aaaaaaaa-0000-0000-0000-000000000001';
   assert v = 0, 'FALLÓ caro: ve estadísticas ajenas';
 
+  -- no puede consultar estadísticas agregadas de una banda ajena vía RPC
+  begin
+    perform public.band_aggregated_stats('aaaaaaaa-0000-0000-0000-000000000001');
+    raise exception 'FALLÓ caro: pudo consultar band_aggregated_stats de banda ajena' using errcode = 'XX999';
+  exception when insufficient_privilege then null;
+  end;
+
   -- no puede editar una banda ajena (0 filas afectadas)
   update public.bands set bio = 'hackeado' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
   get diagnostics n = row_count;

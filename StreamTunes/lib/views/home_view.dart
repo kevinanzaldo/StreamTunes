@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../view_models/home_view_model.dart';
+import '../widgets/empty_state_view.dart';
 import '../widgets/repositories_scope.dart';
 import '../widgets/song_tile.dart';
 import 'band_public_view.dart';
@@ -400,12 +401,12 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
             if (songs.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Todavía no hay lanzamientos.',
-                  style: TextStyle(color: AppTheme.textMuted),
-                ),
+              const EmptyStateView(
+                icon: Icons.music_off,
+                title: 'Todavía no hay lanzamientos',
+                description:
+                    'Cuando las bandas publiquen sus temas los vas a ver acá.',
+                compact: true,
               )
             else
               ...songs.map((song) => SongTile(song: song)),

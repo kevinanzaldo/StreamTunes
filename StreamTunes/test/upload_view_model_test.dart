@@ -52,11 +52,15 @@ class _ThrowingSongRepository extends _RecordingSongRepository {
 /// Simula un `StorageRepository` real (no Fake) donde falla la subida de portada.
 class _SupabaseLikeThrowingCoverStorage implements StorageRepository {
   @override
+  bool get isMock => false;
+
+  @override
   Future<String> uploadAudio({
     required String bandId,
     required String songId,
     required Uint8List bytes,
     required String fileName,
+    void Function(double progress)? onProgress,
   }) async => '$bandId/$songId.mp3';
 
   @override
@@ -64,6 +68,7 @@ class _SupabaseLikeThrowingCoverStorage implements StorageRepository {
     required String bandId,
     required Uint8List bytes,
     required String fileName,
+    void Function(double progress)? onProgress,
   }) async {
     throw Exception('bucket covers error 500');
   }
@@ -289,6 +294,12 @@ void main() {
   test('UploadViewModel: si falla portada en Storage real publica sin portada ni data URI y avisa', () async {
     final repo = _RecordingSongRepository();
     final vm = UploadViewModel(
+      dispositivoCapacidades: _TestDispositivoCapacidades(
+        mockImage: SelectedImageFile(
+          name: 'portada.jpg',
+          bytes: Uint8List.fromList([255, 216, 255]),
+        ),
+      ),
       songRepository: repo,
       storageRepository: _SupabaseLikeThrowingCoverStorage(),
       autoInicializar: false,
@@ -296,7 +307,7 @@ void main() {
     addTearDown(vm.dispose);
 
     _seleccionarAudioValido(vm);
-    vm.tomarFotoManualForTest();
+    await vm.seleccionarFotoDeGaleria();
     final ok = await vm.publicarTema(
       titulo: 'Con falla de portada',
       subirEnSegundoPlano: false,
@@ -309,13 +320,10 @@ void main() {
   });
 }
 
-extension on UploadViewModel {
-  void tomarFotoManualForTest() {
-    seleccionarFotoManual(
-      SelectedImageFile(
-        name: 'portada.jpg',
-        bytes: Uint8List.fromList([255, 216, 255]),
-      ),
-    );
-  }
+class _TestDispositivoCapacidades extends DispositivoCapacidades {
+  _TestDispositivoCapacidades({this.mockImage});
+  final SelectedImageFile? mockImage;
+
+  @override
+  Future<SelectedImageFile?> seleccionarFotoArchivo() async => mockImage;
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../config/app_constants.dart';
 import '../models/band.dart';
@@ -6,6 +7,7 @@ import '../models/donation.dart';
 import '../models/song.dart';
 import '../theme/app_theme.dart';
 import '../view_models/band_public_view_model.dart';
+import '../widgets/empty_state_view.dart';
 import '../widgets/player_bar.dart';
 import '../widgets/repositories_scope.dart';
 import '../widgets/session_scope.dart';
@@ -14,9 +16,10 @@ import 'band_dashboard_view.dart';
 
 /// Perfil público de una banda accesible para cualquier visitante u oyente.
 ///
-/// Muestra información de la banda (portada, bio, redes), meta de financiamiento,
-/// temas más escuchados, opción para donar y reportar. En pantallas anchas
-/// (≥600 px) se adapta a 2 columnas.
+/// Muestra información de la banda, seguir rápido por QR (sin registro),
+/// meta de financiamiento, temas, Top 10 fans en vivo, fotos de shows,
+/// agenda de fechas, enlace a merch y muro de donaciones. En pantalla grande
+/// (≥800 px) se adapta automáticamente a 2 columnas con `LayoutBuilder`.
 class BandPublicView extends StatefulWidget {
   const BandPublicView({super.key, required this.band, this.viewModel});
 
@@ -42,9 +45,12 @@ class _BandPublicViewState extends State<BandPublicView> {
         band: widget.band,
         songRepository: repos.songs,
         donationRepository: repos.donations,
+        bandRepository: repos.bands,
       );
       _ownsViewModel = true;
-      _viewModel.load();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _viewModel.load();
+      });
     }
   }
 
@@ -56,6 +62,36 @@ class _BandPublicViewState extends State<BandPublicView> {
     super.dispose();
   }
 
+  Future<void> _handleFollowPressed() async {
+    final session = SessionScope.maybeRead(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await _viewModel.toggleFollow(
+      ensureAnonymousSession: session == null
+          ? null
+          : () => session.signInAnonymously(),
+    );
+
+    if (!mounted) return;
+    if (result.following) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            result.queuedOffline
+                ? 'Seguimiento guardado en el celu: se sincroniza cuando vuelva la señal.'
+                : '¡Ya estás siguiendo a ${widget.band.name}!',
+          ),
+          backgroundColor: result.queuedOffline
+              ? Colors.orangeAccent
+              : AppTheme.primaryGreen,
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Dejaste de seguir a ${widget.band.name}.')),
+      );
+    }
+  }
+
   void _mostrarDialogoDonar() {
     final controller = TextEditingController(text: '¡Gran música, sigan así!');
     final amounts = _viewModel.donationAmounts;
@@ -63,6 +99,7 @@ class _BandPublicViewState extends State<BandPublicView> {
     double montoSeleccionado = amounts.contains(1000.0)
         ? 1000.0
         : amounts.first;
+    bool donarAnonimo = false;
 
     showDialog(
       context: context,
@@ -81,54 +118,26 @@ class _BandPublicViewState extends State<BandPublicView> {
                 children: [
                   if (_viewModel.spendCapActive)
                     Container(
-                      margin: const EdgeInsets.only(bottom: 12),
+                      key: const ValueKey('spend_cap_banner'),
+                      margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.amber.withAlpha(30),
+                        color: Colors.orange.withAlpha(30),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.amber.withAlpha(100)),
+                        border: Border.all(color: Colors.orange.withAlpha(110)),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(
-                            Icons.warning_amber_rounded,
-                            color: Colors.amber,
-                            size: 20,
+                          Icon(
+                            Icons.network_check,
+                            color: Colors.orangeAccent,
+                            size: 18,
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Estamos con alta demanda – topes de gasto activos (máx $maxLabel).',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withAlpha(30),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.amber.withAlpha(100)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.shield_outlined,
-                            color: Colors.amber,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Control de gasto: máximo $maxLabel por donación para cuidar la comunidad.',
-                              style: const TextStyle(
+                              'Modo de cuidado de ancho de banda activo por alta demanda del servidor.',
+                              style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 11,
                               ),
@@ -137,8 +146,37 @@ class _BandPublicViewState extends State<BandPublicView> {
                         ],
                       ),
                     ),
+                  Container(
+                    key: const ValueKey('max_donation_banner'),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withAlpha(30),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.withAlpha(100)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.shield_outlined,
+                          color: Colors.amber,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Límite máximo por transacción para seguridad del donante: $maxLabel ARS.',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const Text(
-                    'Seleccionar monto (ARS):',
+                    'Elegí el monto (ARS):',
                     style: TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 13,
@@ -171,7 +209,7 @@ class _BandPublicViewState extends State<BandPublicView> {
                     controller: controller,
                     style: const TextStyle(color: Colors.white, fontSize: 13),
                     decoration: InputDecoration(
-                      labelText: 'Mensaje de apoyo (opcional)',
+                      labelText: 'Mensaje para el muro (opcional)',
                       labelStyle: const TextStyle(color: AppTheme.textMuted),
                       filled: true,
                       fillColor: AppTheme.surface,
@@ -179,6 +217,31 @@ class _BandPublicViewState extends State<BandPublicView> {
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide.none,
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    key: const ValueKey('donate_anonymous_switch'),
+                    value: donarAnonimo,
+                    onChanged: (val) =>
+                        setDialogState(() => donarAnonimo = val),
+                    contentPadding: EdgeInsets.zero,
+                    activeTrackColor: AppTheme.primaryGreen,
+                    title: const Text(
+                      'Donar de forma anónima',
+                      style: TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                    subtitle: const Text(
+                      'No muestra tu nombre en el muro público.',
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                    ),
+                  ),
+                  const Text(
+                    'Los aportes se procesan mediante pasarela de pago externa (pueden aplicar comisiones de cobro). Los pedidos de reembolso se gestionan de forma manual con la banda.',
+                    style: TextStyle(
+                      color: AppTheme.textMuted,
+                      fontSize: 11,
+                      height: 1.3,
                     ),
                   ),
                 ],
@@ -203,6 +266,7 @@ class _BandPublicViewState extends State<BandPublicView> {
                   final ok = await _viewModel.donate(
                     amount: montoSeleccionado,
                     message: controller.text.trim(),
+                    isPublic: !donarAnonimo,
                   );
                   if (ok) {
                     messenger.showSnackBar(
@@ -249,7 +313,7 @@ class _BandPublicViewState extends State<BandPublicView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Indica el motivo del reporte (ej. contenido inapropiado o violación de derechos):',
+              'Indicá el motivo del reporte (ej. contenido inapropiado o violación de derechos):',
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 12),
@@ -330,9 +394,7 @@ class _BandPublicViewState extends State<BandPublicView> {
 
   Widget _buildInfoCard(BuildContext context, bool isMember) {
     final band = widget.band;
-    final progress = band.donationGoal > 0
-        ? (band.donationsCollected / band.donationGoal).clamp(0.0, 1.0)
-        : 0.0;
+    final progress = band.donationProgress;
 
     return Card(
       color: AppTheme.surfaceElevated,
@@ -440,14 +502,75 @@ class _BandPublicViewState extends State<BandPublicView> {
                 ),
               ],
             ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('follow_band_button'),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: _viewModel.isFollowing
+                          ? AppTheme.primaryGreen.withAlpha(35)
+                          : Colors.transparent,
+                      foregroundColor: _viewModel.isFollowing
+                          ? AppTheme.primaryGreen
+                          : Colors.white,
+                      side: BorderSide(
+                        color: _viewModel.isFollowing
+                            ? AppTheme.primaryGreen
+                            : Colors.white24,
+                      ),
+                    ),
+                    onPressed: _handleFollowPressed,
+                    icon: Icon(
+                      _viewModel.isFollowing ? Icons.check : Icons.person_add,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _viewModel.isFollowing
+                          ? 'Siguiendo (${_viewModel.followersCount})'
+                          : 'Seguir (${_viewModel.followersCount})',
+                    ),
+                  ),
+                ),
+              ],
+            ),
             if (band.bio.isNotEmpty) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               Text(
                 band.bio,
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 13,
                   height: 1.4,
+                ),
+              ),
+            ],
+            if (band.merchUrl != null && band.merchUrl!.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  key: const ValueKey('band_merch_button'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.amberAccent,
+                    side: const BorderSide(color: Colors.amberAccent),
+                  ),
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    await Clipboard.setData(
+                      ClipboardData(text: band.merchUrl!),
+                    );
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Link de merch copiado: ${band.merchUrl}',
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+                  label: const Text('Tienda de merch (remeras y vinilos)'),
                 ),
               ),
             ],
@@ -470,7 +593,6 @@ class _BandPublicViewState extends State<BandPublicView> {
               ),
             ],
             const Divider(color: Colors.white12, height: 28),
-            // Meta de financiamiento
             Row(
               children: [
                 const Expanded(
@@ -506,7 +628,6 @@ class _BandPublicViewState extends State<BandPublicView> {
               ),
             ),
             const SizedBox(height: 20),
-            // Botones de acción
             Row(
               children: [
                 Expanded(
@@ -567,7 +688,7 @@ class _BandPublicViewState extends State<BandPublicView> {
                         ),
                         SizedBox(width: 8),
                         Text(
-                          'Eres miembro de esta banda',
+                          'Sos miembro de esta banda',
                           style: TextStyle(
                             color: AppTheme.primaryGreen,
                             fontSize: 12,
@@ -610,6 +731,31 @@ class _BandPublicViewState extends State<BandPublicView> {
     );
   }
 
+  Widget _buildSpendCapBanner() {
+    if (!_viewModel.spendCapActive) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.orange.withAlpha(28),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orangeAccent),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.speed, color: Colors.orangeAccent, size: 18),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Modo de cuidado de ancho de banda activo por alta demanda del servidor.',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLiveAlertBanner() {
     final alert = _viewModel.latestDonationAlert;
     if (alert == null) return const SizedBox.shrink();
@@ -646,8 +792,6 @@ class _BandPublicViewState extends State<BandPublicView> {
   }
 
   Widget _buildDonationsWall(List<Donation> donations) {
-    if (donations.isEmpty) return const SizedBox.shrink();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -671,60 +815,283 @@ class _BandPublicViewState extends State<BandPublicView> {
           ],
         ),
         const SizedBox(height: 8),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: donations.take(3).length,
-          separatorBuilder: (_, _) => const SizedBox(height: 6),
-          itemBuilder: (context, i) {
-            final don = donations[i];
-            return Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceElevated,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        don.donorName ?? 'Oyente solidario',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+        if (donations.isEmpty)
+          const Text(
+            'Sé el primero en apoyar a esta banda en el muro.',
+            style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: donations.take(5).length,
+            separatorBuilder: (_, _) => const SizedBox(height: 6),
+            itemBuilder: (context, i) {
+              final don = donations[i];
+              final donorLabel = don.isPublic
+                  ? (don.donorName ?? 'Fan')
+                  : 'Donante anónimo';
+              return Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          donorLabel,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
+                        Text(
+                          don.formattedAmount,
+                          style: const TextStyle(
+                            color: AppTheme.primaryGreen,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (don.message != null && don.message!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
                       Text(
-                        don.formattedAmount,
+                        '"${don.message}"',
                         style: const TextStyle(
-                          color: AppTheme.primaryGreen,
-                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textMuted,
                           fontSize: 11,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                     ],
+                  ],
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTopFansSection() {
+    final fans = _viewModel.topFans;
+    if (fans.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        const Text(
+          'Top 10 fans en vivo',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          color: AppTheme.surfaceElevated,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: fans.length,
+            separatorBuilder: (_, _) =>
+                const Divider(color: Colors.white10, height: 1),
+            itemBuilder: (context, index) {
+              final fan = fans[index];
+              final hasAvatar =
+                  fan.isPublic &&
+                  fan.avatarUrl != null &&
+                  fan.avatarUrl!.isNotEmpty;
+              return ListTile(
+                dense: true,
+                leading: hasAvatar
+                    ? CircleAvatar(
+                        radius: 16,
+                        backgroundImage: NetworkImage(fan.avatarUrl!),
+                      )
+                    : CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppTheme.surface,
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                            color: AppTheme.primaryGreen,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                title: Text(
+                  fan.nombre,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+                trailing: Text(
+                  '${fan.minutos} min',
+                  style: const TextStyle(
+                    color: AppTheme.primaryGreen,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
                   ),
-                  if (don.message != null && don.message!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      '"${don.message}"',
-                      style: const TextStyle(
-                        color: AppTheme.textMuted,
-                        fontSize: 11,
-                        fontStyle: FontStyle.italic,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEventsSection() {
+    final events = _viewModel.events;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        const Text(
+          'Próximas fechas',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (events.isEmpty)
+          const EmptyStateView(
+            icon: Icons.event_busy,
+            title: 'Sin fechas confirmadas',
+            description: 'La banda todavía no programó próximos recitales.',
+            compact: true,
+          )
+        else
+          Card(
+            color: AppTheme.surfaceElevated,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: events.length,
+              separatorBuilder: (_, _) =>
+                  const Divider(color: Colors.white10, height: 1),
+              itemBuilder: (context, index) {
+                final ev = events[index];
+                return ListTile(
+                  leading: const Icon(
+                    Icons.event,
+                    color: AppTheme.primaryGreen,
+                  ),
+                  title: Text(
+                    ev.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${ev.formattedDate} · ${ev.venue}${ev.city.isNotEmpty ? " (${ev.city})" : ""}',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPhotosGallery() {
+    final photos = _viewModel.photos;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        const Text(
+          'Fotos de shows',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (photos.isEmpty)
+          const EmptyStateView(
+            icon: Icons.photo_library_outlined,
+            title: 'Sin fotos todavía',
+            description:
+                'Pronto vas a ver fotos de sus presentaciones en vivo.',
+            compact: true,
+          )
+        else
+          SizedBox(
+            height: 140,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: photos.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final photo = photos[index];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        photo.photoUrl,
+                        width: 160,
+                        height: 110,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 160,
+                          height: 110,
+                          color: Colors.white10,
+                          child: const Icon(Icons.image, color: Colors.white38),
+                        ),
                       ),
                     ),
+                    if (photo.caption != null && photo.caption!.isNotEmpty)
+                      SizedBox(
+                        width: 160,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            photo.caption!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
-                ],
-              ),
-            );
-          },
-        ),
+                );
+              },
+            ),
+          ),
       ],
     );
   }
@@ -812,19 +1179,19 @@ class _BandPublicViewState extends State<BandPublicView> {
         builder: (context, _) {
           return LayoutBuilder(
             builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 600;
+              final isWide = constraints.maxWidth >= 800;
 
               if (isWide) {
-                // Layout 2 columnas adaptativo en pantallas anchas
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
-                      width: 340,
+                      width: 360,
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                         child: Column(
                           children: [
+                            _buildSpendCapBanner(),
                             _buildLiveAlertBanner(),
                             _buildInfoCard(context, isMember),
                           ],
@@ -834,11 +1201,19 @@ class _BandPublicViewState extends State<BandPublicView> {
                     const VerticalDivider(color: Colors.white12, width: 1),
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-                        child: _buildSongsSection(
-                          _viewModel.songs,
-                          _viewModel.isLoading,
-                          _viewModel.error,
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSongsSection(
+                              _viewModel.songs,
+                              _viewModel.isLoading,
+                              _viewModel.error,
+                            ),
+                            _buildPhotosGallery(),
+                            _buildEventsSection(),
+                            _buildTopFansSection(),
+                          ],
                         ),
                       ),
                     ),
@@ -846,12 +1221,12 @@ class _BandPublicViewState extends State<BandPublicView> {
                 );
               }
 
-              // Layout móvil / columna única
               return SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildSpendCapBanner(),
                     _buildLiveAlertBanner(),
                     _buildInfoCard(context, isMember),
                     const SizedBox(height: 20),
@@ -860,6 +1235,9 @@ class _BandPublicViewState extends State<BandPublicView> {
                       _viewModel.isLoading,
                       _viewModel.error,
                     ),
+                    _buildPhotosGallery(),
+                    _buildEventsSection(),
+                    _buildTopFansSection(),
                   ],
                 ),
               );

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'config/app_config.dart';
@@ -19,6 +18,7 @@ import 'widgets/session_scope.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AudioService.initBackgroundPlayback();
   // Solo se conecta a Supabase si hay credenciales y no se pidió el modo demo
   // (--dart-define=USE_MOCK=true). Sin credenciales la app sigue en modo mock.
   if (!AppConfig.shouldUseMock) {
@@ -86,20 +86,6 @@ class _StreamTunesAppState extends State<StreamTunesApp>
     );
     imageCache.clear();
     imageCache.clearLiveImages();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    // Solo pausar al pasar realmente a segundo plano (paused/hidden) en plataformas nativas.
-    // `inactive` también se dispara al abrir diálogos o selectores de archivo/cámara, y las
-    // llamadas telefónicas las gestiona AudioService vía `audio_session`.
-    // En Web (kIsWeb), la música sigue sonando al cambiar de pestaña o minimizar el navegador.
-    if (!kIsWeb &&
-        (state == AppLifecycleState.paused ||
-            state == AppLifecycleState.hidden)) {
-      _reproductorViewModel.pause();
-    }
   }
 
   @override

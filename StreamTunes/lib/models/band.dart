@@ -24,6 +24,7 @@ class Band {
   final String genre;
   final String location;
   final String? coverUrl;
+  final String? merchUrl;
   final Map<String, String> socialLinks;
   final double donationGoal;
   final double donationsCollected;
@@ -39,6 +40,7 @@ class Band {
     this.genre = '',
     this.location = '',
     this.coverUrl,
+    this.merchUrl,
     this.socialLinks = const {},
     this.donationGoal = 0,
     this.donationsCollected = 0,
@@ -100,6 +102,7 @@ class Band {
       genre: (json['genre'] as String?) ?? '',
       location: (json['location'] as String?) ?? '',
       coverUrl: json['cover_url'] as String?,
+      merchUrl: json['merch_url'] as String?,
       socialLinks: links,
       donationGoal: (json['donation_goal'] as num?)?.toDouble() ?? 0,
       donationsCollected:
@@ -119,6 +122,8 @@ class Band {
     'genre': genre,
     'location': location,
     'cover_url': coverUrl,
+    if (merchUrl != null && merchUrl!.trim().isNotEmpty)
+      'merch_url': merchUrl!.trim(),
     'social_links': socialLinks,
     'donation_goal': donationGoal,
     'created_by': createdBy,
@@ -131,6 +136,7 @@ class Band {
     'genre': genre,
     'location': location,
     'cover_url': coverUrl,
+    'merch_url': merchUrl?.trim().isEmpty == true ? null : merchUrl?.trim(),
     'social_links': socialLinks,
     'donation_goal': donationGoal,
   };
@@ -143,6 +149,7 @@ class Band {
     String? genre,
     String? location,
     String? coverUrl,
+    String? merchUrl,
     Map<String, String>? socialLinks,
     double? donationGoal,
     double? donationsCollected,
@@ -158,6 +165,7 @@ class Band {
       genre: genre ?? this.genre,
       location: location ?? this.location,
       coverUrl: coverUrl ?? this.coverUrl,
+      merchUrl: merchUrl ?? this.merchUrl,
       socialLinks: socialLinks ?? this.socialLinks,
       donationGoal: donationGoal ?? this.donationGoal,
       donationsCollected: donationsCollected ?? this.donationsCollected,

@@ -7,6 +7,31 @@ const int kMaxSongsPerBand = 20;
 const int kMaxAlbumsPerBand = 2;
 const int kMinSongDurationSeconds = 60;
 
+/// Límites configurables de tamaño y formato de archivos para Storage.
+/// El plan gratuito de Supabase impone un tope de 50 MB por archivo.
+const int kMaxAudioFileSizeBytes = 50 * 1024 * 1024; // 50 MB
+const int kMaxCoverFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+const List<String> kAllowedAudioExtensions = ['mp3', 'm4a', 'wav'];
+const List<String> kAllowedImageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+/// Base de URL pública para los deep links y códigos QR de bandas.
+const String kPublicBaseUrl = String.fromEnvironment(
+  'PUBLIC_BASE_URL',
+  defaultValue: 'https://streamtunes-web.vercel.app',
+);
+
+/// Construye la URL del QR para una banda: `<PUBLIC_BASE_URL>/?band=<slug>`.
+/// Siempre sin barra final en la base.
+String buildBandQrUrl(String slug) {
+  final base = kPublicBaseUrl.endsWith('/')
+      ? kPublicBaseUrl.substring(0, kPublicBaseUrl.length - 1)
+      : kPublicBaseUrl;
+  return '$base/?band=$slug';
+}
+
+/// Frecuencia mínima de refresco en vivo para el ranking de fans por Realtime.
+const Duration kRealtimeRankingThrottle = Duration(seconds: 5);
+
 /// Tope y opciones predefinidas de donación en pesos argentinos ($ ARS).
 const double kMaxDonationArs = 5000.0;
 const List<double> kDonationAmountsArs = [500.0, 1000.0, 2000.0, 5000.0];

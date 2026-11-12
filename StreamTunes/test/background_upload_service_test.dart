@@ -11,12 +11,10 @@ import 'package:streamtunes/views/upload_view.dart';
 void main() {
   tearDown(() {
     debugDefaultTargetPlatformOverride = null;
-    BackgroundUploadService.resetParaTests();
   });
 
   test('BackgroundUploadService: mostrarNotificacion devuelve false en plataforma sin soporte', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-    BackgroundUploadService.resetParaTests();
 
     expect(BackgroundUploadService.soportaNotificacionesNativas, isFalse);
     final shown = await BackgroundUploadService.mostrarNotificacion(
@@ -61,7 +59,6 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-      BackgroundUploadService.resetParaTests();
       try {
         final vm = UploadViewModel(
           songRepository: FakeSongRepository(),

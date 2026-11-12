@@ -83,6 +83,45 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<Profile> signInAnonymously() async {
+    final existing = _auth.currentUser;
+    if (existing != null) {
+      return _fetchProfile(existing.id);
+    }
+    try {
+      final response = await _auth.signInAnonymously();
+      final user = response.user;
+      if (user == null) {
+        throw const RepositoryFailure('No se pudo crear una sesión rápida.');
+      }
+      return await _fetchProfile(user.id);
+    } on AuthException catch (e) {
+      throw RepositoryFailure(_mensaje(e));
+    }
+  }
+
+  @override
+  Future<Profile> updateProfile(Profile profile) async {
+    final userId = _auth.currentUser?.id;
+    if (userId == null || userId != profile.id) {
+      throw const RepositoryFailure(
+        'Necesitás iniciar sesión para editar tu perfil.',
+      );
+    }
+    try {
+      final row = await _client
+          .from('profiles')
+          .update(profile.toUpdateJson())
+          .eq('id', userId)
+          .select()
+          .single();
+      return Profile.fromJson(row);
+    } on PostgrestException catch (e) {
+      throw RepositoryFailure('No se pudo actualizar el perfil: ${e.message}');
+    }
+  }
+
+  @override
   Future<void> sendPasswordReset(String email) async {
     try {
       await _auth.resetPasswordForEmail(email.trim());

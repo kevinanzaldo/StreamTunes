@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streamtunes/repositories/fake/fake_auth_repository.dart';
 import 'package:streamtunes/repositories/fake/fake_band_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
+import 'package:streamtunes/repositories/fake/fake_playlist_repository.dart';
 import 'package:streamtunes/view_models/library_view_model.dart';
 import 'package:streamtunes/view_models/reproductor_view_model.dart';
 import 'package:streamtunes/view_models/session_view_model.dart';
@@ -18,6 +21,7 @@ void main() {
   late LibraryViewModel library;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     authRepo = FakeAuthRepository();
     bandRepo = FakeBandRepository();
     session = SessionViewModel(
@@ -25,7 +29,10 @@ void main() {
       bandRepository: bandRepo,
     );
     player = ReproductorViewModel();
-    library = LibraryViewModel();
+    library = LibraryViewModel(
+      playlistRepository: FakePlaylistRepository(),
+      donationRepository: FakeDonationRepository(),
+    );
   });
 
   tearDown(() {

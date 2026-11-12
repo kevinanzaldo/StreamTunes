@@ -2,7 +2,11 @@ import '../../models/report.dart';
 import '../interfaces/report_repository.dart';
 
 class FakeReportRepository implements ReportRepository {
-  FakeReportRepository() {
+  FakeReportRepository([List<Report>? initialReports]) {
+    if (initialReports != null) {
+      _reports.addAll(initialReports);
+      return;
+    }
     // Reportes demo iniciales
     _reports.addAll([
       Report(

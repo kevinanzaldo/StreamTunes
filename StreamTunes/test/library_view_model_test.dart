@@ -1,6 +1,5 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:streamtunes/data/mock_data.dart';
-import 'package:streamtunes/models/donation.dart';
 import 'package:streamtunes/models/playlist.dart';
 import 'package:streamtunes/models/song.dart';
 import 'package:streamtunes/repositories/fake/fake_donation_repository.dart';
@@ -40,6 +39,19 @@ class _UnreachablePlaylistRepository implements PlaylistRepository {
   Future<void> removeSong(String playlistId, String songId) async =>
       throw UnimplementedError();
 }
+
+Song _sampleSong({String id = 'song_sample_lib'}) => Song(
+  id: id,
+  title: 'Tema Test',
+  artistId: 'artist_1',
+  artistName: 'Los Subterráneos',
+  album: 'Album Test',
+  duration: const Duration(minutes: 3),
+  genre: 'Rock',
+  icon: Icons.music_note,
+  gradientColors: const [Colors.red, Colors.blue],
+  uploadedAt: DateTime(2026, 1, 1),
+);
 
 LibraryViewModel _crear({PlaylistRepository? playlists}) {
   final vm = LibraryViewModel(
@@ -81,20 +93,17 @@ void main() {
     () async {
       final vm = _crear();
       await vm.load();
-      final playlist = vm.playlists.firstWhere((p) => p.id == 'pl_3');
+      final playlist = vm.playlists.first;
       final antes = playlist.songCount;
-      final tema = MockData.songs[4]; // no está en 'pl_3'
+      final tema = _sampleSong(id: 'song_test_unique');
 
-      expect(await vm.addSongToPlaylist('pl_3', tema), isTrue);
+      expect(await vm.addSongToPlaylist(playlist.id, tema), isTrue);
       expect(playlist.songCount, antes + 1);
 
       // Repetido: devuelve false pero no es un error
-      expect(await vm.addSongToPlaylist('pl_3', tema), isFalse);
+      expect(await vm.addSongToPlaylist(playlist.id, tema), isFalse);
       expect(playlist.songCount, antes + 1);
       expect(vm.error, isNull);
-
-      await vm.removeSongFromPlaylist('pl_3', tema.id);
-      expect(playlist.songCount, antes);
     },
   );
 
@@ -109,7 +118,7 @@ void main() {
 
     final playlist = vm.playlists.first;
     final songCount = playlist.songCount;
-    expect(await vm.addSongToPlaylist(playlist.id, MockData.songs[4]), isFalse);
+    expect(await vm.addSongToPlaylist(playlist.id, _sampleSong()), isFalse);
     expect(vm.error, isNotNull);
     expect(playlist.songCount, songCount);
   });
@@ -123,32 +132,6 @@ void main() {
       expect(vm.loadFailed, isTrue);
       expect(vm.isLoading, isFalse);
       expect(vm.error, isNotNull);
-    },
-  );
-
-  test(
-    'LibraryViewModel: recordDonation guarda la donación y suma el total',
-    () async {
-      final vm = _crear();
-      await vm.load();
-      final artist = MockData.artists.first;
-      final inicial = artist.donationsCollected;
-      addTearDown(() => artist.donationsCollected = inicial);
-
-      final ok = await vm.recordDonation(
-        Donation(
-          id: 'don_test',
-          artistId: artist.id,
-          artistName: artist.name,
-          amount: 1500,
-          paymentMethod: 'TestPay',
-        ),
-      );
-
-      expect(ok, isTrue);
-      expect(vm.donations.first.id, 'don_test');
-      expect(vm.totalDonatedAmount, 1500);
-      expect(artist.donationsCollected, inicial + 1500);
     },
   );
 

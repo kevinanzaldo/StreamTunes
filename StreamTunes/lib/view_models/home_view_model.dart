@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/artist.dart';
 import '../models/band.dart';
 import '../models/song.dart';
 import '../repositories/interfaces/band_repository.dart';
@@ -23,13 +22,11 @@ class HomeViewModel extends ChangeNotifier {
   HomeStatus _status = HomeStatus.loading;
   List<Song> _latestSongs = const [];
   List<Band> _bands = const [];
-  final Map<String, Artist> _artistCache = {};
   String _searchQuery = '';
   String? _selectedGenre;
   bool _disposed = false;
 
   HomeStatus get status => _status;
-  List<Song> get latestSongs => List.unmodifiable(_latestSongs);
   List<Band> get bands => List.unmodifiable(_bands);
   String get searchQuery => _searchQuery;
   String? get selectedGenre => _selectedGenre;
@@ -113,13 +110,6 @@ class HomeViewModel extends ChangeNotifier {
       _status = HomeStatus.error;
     }
     _notify();
-  }
-
-  /// Adaptador temporal hacia `ArtistDetailView` (que todavía usa [Artist]).
-  /// Devuelve siempre la misma instancia por banda para conservar su estado
-  /// (por ejemplo las donaciones acumuladas) mientras dura la sesión.
-  Artist artistFor(Band band) {
-    return _artistCache.putIfAbsent(band.id, () => Artist.fromBand(band));
   }
 
   void _notify() {

@@ -22,7 +22,7 @@ val hasReleaseKeystore =
 
 android {
     namespace = "com.streamtunes.app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

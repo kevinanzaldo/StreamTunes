@@ -9,13 +9,13 @@ import '../interfaces/donation_repository.dart';
 ///
 /// El tope por donación (`max_donation_ars`) y que la banda esté aprobada los
 /// valida un trigger: llegan como `PostgrestException` con el mensaje en español.
-/// La tabla no guarda el medio de pago, así que `paymentMethod` vuelve como 'N/D'.
 class SupabaseDonationRepository implements DonationRepository {
   SupabaseDonationRepository(this._client);
 
   final SupabaseClient _client;
 
-  static const String _select = '*, bands(name)';
+  static const String _select =
+      '*, bands(name), profiles:donor_id(display_name)';
 
   @override
   Future<List<Donation>> getMyDonations() async {
@@ -35,8 +35,9 @@ class SupabaseDonationRepository implements DonationRepository {
         .from('donations')
         .select(_select)
         .eq('band_id', bandId)
+        .eq('status', 'approved')
         .order('created_at', ascending: false);
-    return rows.map(_fromRow).toList();
+    return rows.map(_fromRow).where((d) => d.isApproved).toList();
   }
 
   @override
@@ -48,7 +49,8 @@ class SupabaseDonationRepository implements DonationRepository {
         .order('created_at', ascending: false)
         .map((rows) {
           if (rows.isEmpty) return null;
-          return _fromRow(rows.first);
+          final donation = _fromRow(rows.first);
+          return donation.isApproved ? donation : null;
         })
         .where((d) => d != null)
         .cast<Donation>();
@@ -102,6 +104,8 @@ class SupabaseDonationRepository implements DonationRepository {
           'amount': donation.amount,
           'currency': donation.currency,
           'message': (message == null || message.isEmpty) ? null : message,
+          'is_public': donation.isPublic,
+          'status': donation.status.dbValue,
         })
         .select(_select)
         .single();
@@ -110,6 +114,12 @@ class SupabaseDonationRepository implements DonationRepository {
 
   Donation _fromRow(Map<String, dynamic> row) {
     final band = row['bands'] as Map<String, dynamic>?;
+    final profile = row['profiles'] as Map<String, dynamic>?;
+    final isPublic = (row['is_public'] as bool?) ?? true;
+    final donorDisplay = isPublic
+        ? (profile?['display_name'] as String?) ?? 'Fan'
+        : 'Donante anónimo';
+
     return Donation(
       id: row['id'] as String,
       artistId: row['band_id'] as String,
@@ -117,8 +127,11 @@ class SupabaseDonationRepository implements DonationRepository {
       amount: (row['amount'] as num).toDouble(),
       currency: (row['currency'] as String?) ?? 'ARS',
       message: row['message'] as String?,
-      paymentMethod: 'N/D',
+      paymentMethod: 'Pasarela externa',
       timestamp: DateTime.parse(row['created_at'] as String),
+      donorName: donorDisplay,
+      isPublic: isPublic,
+      status: DonationStatus.fromDb(row['status'] as String?),
     );
   }
 }

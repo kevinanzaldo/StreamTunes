@@ -21,7 +21,7 @@ class PlayerBar extends StatelessWidget {
         }
 
         return GestureDetector(
-          onTap: () => NowPlayingModal.show(context, reproductor),
+          onTap: () => NowPlayingModal.show(context),
           child: Container(
             decoration: const BoxDecoration(
               color: AppTheme.surfaceElevated,

@@ -1,13 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../config/app_constants.dart';
 import '../models/song.dart';
-import '../repositories/app_repositories.dart';
-import '../repositories/fake/fake_storage_repository.dart';
 import '../repositories/interfaces/song_repository.dart';
 import '../repositories/interfaces/storage_repository.dart';
 import '../services/background_upload_service.dart';
@@ -19,8 +15,8 @@ class UploadViewModel extends ChangeNotifier {
   static const Uuid _uuid = Uuid();
 
   final DispositivoCapacidades _dispositivoCapacidades;
-  final SongRepository _songRepository;
-  final StorageRepository _storageRepository;
+  final SongRepository songRepository;
+  final StorageRepository storageRepository;
 
   bool _tieneCamara = false;
   bool _cargandoCapacidades = false;
@@ -34,22 +30,31 @@ class UploadViewModel extends ChangeNotifier {
   int _albumCount = 0;
   bool _cargandoCupos = false;
   bool _subiendo = false;
+  double _uploadProgress = 0.0;
+  bool _puedeReintentar = false;
   bool _notificacionNativaProgramada = false;
   String? _avisoPortada;
-  String? _mensajeExito;
   String? _error;
   bool _disposed = false;
 
+  // Último intento guardado para permitir reintentar sin perder los datos cargados.
+  String? _ultimoTitulo;
+  String _ultimoAlbum = 'Demo';
+  String? _ultimoGenero;
+  String? _ultimoLyricsLrc;
+  String? _ultimoArtistId;
+  String? _ultimoArtistName;
+  Duration? _ultimoDuracion;
+  bool _ultimoSegundoPlano = true;
+  bool _ultimoPermitirSinAudioDemo = false;
+
   UploadViewModel({
     DispositivoCapacidades? dispositivoCapacidades,
-    SongRepository? songRepository,
-    StorageRepository? storageRepository,
+    required this.songRepository,
+    required this.storageRepository,
     bool autoInicializar = true,
   }) : _dispositivoCapacidades =
-           dispositivoCapacidades ?? DispositivoCapacidades(),
-       _songRepository = songRepository ?? AppRepositories.create().songs,
-       _storageRepository =
-           storageRepository ?? AppRepositories.create().storage {
+           dispositivoCapacidades ?? DispositivoCapacidades() {
     if (autoInicializar) {
       inicializarCapacidades();
     }
@@ -57,6 +62,9 @@ class UploadViewModel extends ChangeNotifier {
 
   bool get tieneCamara => _tieneCamara;
   bool get cargandoCapacidades => _cargandoCapacidades;
+  bool get mostrarAdvertenciaPestanaWeb => _dispositivoCapacidades.esWeb;
+  bool get soportaSegundoPlanoNativo =>
+      _dispositivoCapacidades.soportaSegundoPlanoNativo;
   String? get fotoPortadaPath => _fotoPortadaPath;
   SelectedImageFile? get selectedImage => _selectedImage;
   String? get nombreArchivoAudio => _nombreArchivoAudio;
@@ -66,15 +74,15 @@ class UploadViewModel extends ChangeNotifier {
   bool get tienePortada => _fotoPortadaPath != null || _selectedImage != null;
   bool get tieneAudio => _selectedAudio != null || _nombreArchivoAudio != null;
   bool get subiendo => _subiendo;
+  double get uploadProgress => _uploadProgress;
+  bool get puedeReintentar => _puedeReintentar;
   bool get notificacionNativaProgramada => _notificacionNativaProgramada;
   String? get avisoPortada => _avisoPortada;
-  String? get mensajeExito => _mensajeExito;
   String? get error => _error;
   int get songCount => _songCount;
   int get albumCount => _albumCount;
   bool get cargandoCupos => _cargandoCupos;
   bool get hasReachedSongLimit => _songCount >= kMaxSongsPerBand;
-  bool get hasReachedAlbumLimit => _albumCount >= kMaxAlbumsPerBand;
 
   /// Consulta asincrónica de capacidades del dispositivo (Bloque 3 - Criterios D1, F1).
   Future<void> inicializarCapacidades() async {
@@ -91,7 +99,7 @@ class UploadViewModel extends ChangeNotifier {
     _cargandoCupos = true;
     _notify();
     try {
-      final songs = await _songRepository.getSongsByBand(bandId);
+      final songs = await songRepository.getSongsByBand(bandId);
       _songCount = songs.length;
       final albums = songs
           .map((s) => s.album.trim().toLowerCase())
@@ -106,9 +114,45 @@ class UploadViewModel extends ChangeNotifier {
     }
   }
 
+  String? _validarImagen(SelectedImageFile img) {
+    final ext = img.name.contains('.')
+        ? img.name.split('.').last.toLowerCase()
+        : '';
+    if (!kAllowedImageExtensions.contains(ext)) {
+      return 'Formato de imagen no permitido ($ext). Usá JPG, PNG o WebP.';
+    }
+    if (img.bytes.length > kMaxCoverFileSizeBytes) {
+      final maxMb = (kMaxCoverFileSizeBytes / (1024 * 1024)).toStringAsFixed(0);
+      return 'La portada supera el máximo permitido de $maxMb MB.';
+    }
+    return null;
+  }
+
+  String? _validarAudio(String fileName, int? size) {
+    final ext = fileName.contains('.')
+        ? fileName.split('.').last.toLowerCase()
+        : '';
+    if (ext.isEmpty || !kAllowedAudioExtensions.contains(ext)) {
+      return 'Formato de audio no válido ($ext). Usá MP3, M4A o WAV.';
+    }
+    if (size != null && size > kMaxAudioFileSizeBytes) {
+      final maxMb = (kMaxAudioFileSizeBytes / (1024 * 1024)).toStringAsFixed(0);
+      return 'El archivo supera el límite de $maxMb MB permitido por Supabase Storage en el plan actual. '
+          'Un WAV sin comprimir de ~1 GB no entra en este límite: para subirlo es necesario comprimirlo previamente '
+          'a MP3/M4A o contar con transcodificación en servidor (o subir temas individuales de hasta $maxMb MB).';
+    }
+    return null;
+  }
+
   Future<void> tomarFotoConCamara() async {
     final result = await _dispositivoCapacidades.tomarFotoArchivo();
     if (result != null) {
+      final validationError = _validarImagen(result);
+      if (validationError != null) {
+        _error = validationError;
+        _notify();
+        return;
+      }
       _selectedImage = result;
       _fotoPortadaPath = result.name;
       _error = null;
@@ -119,6 +163,12 @@ class UploadViewModel extends ChangeNotifier {
   Future<void> seleccionarFotoDeGaleria() async {
     final result = await _dispositivoCapacidades.seleccionarFotoArchivo();
     if (result != null) {
+      final validationError = _validarImagen(result);
+      if (validationError != null) {
+        _error = validationError;
+        _notify();
+        return;
+      }
       _selectedImage = result;
       _fotoPortadaPath = result.name;
       _error = null;
@@ -126,14 +176,7 @@ class UploadViewModel extends ChangeNotifier {
     }
   }
 
-  void seleccionarFotoManual(SelectedImageFile img) {
-    _selectedImage = img;
-    _fotoPortadaPath = img.name;
-    _error = null;
-    _notify();
-  }
-
-  /// Quita la foto seleccionada para dejar el tema sin foto propia
+  /// Quita la foto seleccionada para dejar el tema sin foto propia.
   void quitarFoto() {
     _selectedImage = null;
     _fotoPortadaPath = null;
@@ -156,20 +199,11 @@ class UploadViewModel extends ChangeNotifier {
     _nombreArchivoAudio = null;
     _duracionAudio = null;
     _genero = kSongGenres.first;
+    _uploadProgress = 0.0;
+    _puedeReintentar = false;
     _notificacionNativaProgramada = false;
     _avisoPortada = null;
     _error = null;
-    _mensajeExito = null;
-    _notify();
-  }
-
-  void setDuracionAudio(Duration? dur) {
-    _duracionAudio = dur;
-    if (dur != null && dur.inSeconds < kMinSongDurationSeconds) {
-      _error = 'La canción debe durar al menos 1 minuto (60 segundos).';
-    } else {
-      _error = null;
-    }
     _notify();
   }
 
@@ -177,6 +211,12 @@ class UploadViewModel extends ChangeNotifier {
   Future<void> seleccionarAudio() async {
     final result = await _dispositivoCapacidades.seleccionarArchivoAudio();
     if (result != null) {
+      final audioErr = _validarAudio(result.name, result.size);
+      if (audioErr != null) {
+        _error = audioErr;
+        _notify();
+        return;
+      }
       _selectedAudio = result;
       _nombreArchivoAudio = result.name;
       _duracionAudio = result.duration;
@@ -196,11 +236,18 @@ class UploadViewModel extends ChangeNotifier {
     int? size,
     Duration? duration,
   }) {
+    final resolvedSize = size ?? bytes?.length;
+    final audioErr = _validarAudio(fileName, resolvedSize);
+    if (audioErr != null) {
+      _error = audioErr;
+      _notify();
+      return;
+    }
     _nombreArchivoAudio = fileName;
     if (bytes != null) {
       _selectedAudio = SelectedAudioFile(
         name: fileName,
-        size: size ?? bytes.length,
+        size: resolvedSize ?? bytes.length,
         bytes: bytes,
         duration: duration,
       );
@@ -216,43 +263,73 @@ class UploadViewModel extends ChangeNotifier {
     _notify();
   }
 
-  /// Publica un tema nuevo.
-  ///
-  /// El cupo ([kMaxSongsPerBand] temas / [kMaxAlbumsPerBand] álbumes por banda)
-  /// se valida acá como feedback inmediato; la base vuelve a exigirlo con triggers.
-  /// Exige archivo de audio válido y duración mínima de 1 minuto (60 s).
-  ///
-  /// [artistId] y [artistName] son la banda activa de la sesión. Si no se pasan
-  /// (pantalla usada sin sesión, como en los tests) se usa la banda de demo.
+  Future<bool> reintentarSubida() async {
+    final title = _ultimoTitulo;
+    if (title == null || _subiendo) return false;
+    return publicarTema(
+      titulo: title,
+      album: _ultimoAlbum,
+      genero: _ultimoGenero,
+      lyricsLrc: _ultimoLyricsLrc,
+      artistId: _ultimoArtistId,
+      artistName: _ultimoArtistName,
+      duracion: _ultimoDuracion,
+      subirEnSegundoPlano: _ultimoSegundoPlano,
+      permitirSinAudioEnDemo: _ultimoPermitirSinAudioDemo,
+    );
+  }
+
+  /// Publica un tema nuevo validando formato, tamaño, duración y cupos.
   Future<bool> publicarTema({
     required String titulo,
     String album = 'Demo',
     String? genero,
+    String? lyricsLrc,
     String? artistId,
     String? artistName,
     Duration? duracion,
     bool subirEnSegundoPlano = true,
     bool permitirSinAudioEnDemo = false,
   }) async {
+    _ultimoTitulo = titulo;
+    _ultimoAlbum = album;
+    _ultimoGenero = genero;
+    _ultimoLyricsLrc = lyricsLrc;
+    _ultimoArtistId = artistId;
+    _ultimoArtistName = artistName;
+    _ultimoDuracion = duracion;
+    _ultimoSegundoPlano = subirEnSegundoPlano;
+    _ultimoPermitirSinAudioDemo = permitirSinAudioEnDemo;
+
     final bandId = artistId ?? _demoBandId;
     final bandName = artistName ?? _demoBandName;
-    // Evita publicar dos veces si se toca el botón durante la validación.
     if (_subiendo) return false;
 
     if (titulo.trim().isEmpty) {
-      _error = 'Ingresa el título del tema';
+      _error = 'Ingresá el título del tema.';
       _notify();
       return false;
     }
 
     final tieneBytesAudio =
         _selectedAudio?.bytes != null && _selectedAudio!.bytes!.isNotEmpty;
-    final usaExcepcionDemo =
-        permitirSinAudioEnDemo && _storageRepository is FakeStorageRepository;
+    final usaExcepcionDemo = permitirSinAudioEnDemo && storageRepository.isMock;
     if (!tieneBytesAudio && !usaExcepcionDemo) {
       _error = 'Elegí un archivo de audio (.mp3, .m4a o .wav).';
       _notify();
       return false;
+    }
+
+    if (_selectedAudio != null) {
+      final audioErr = _validarAudio(
+        _selectedAudio!.name,
+        _selectedAudio!.size,
+      );
+      if (audioErr != null) {
+        _error = audioErr;
+        _notify();
+        return false;
+      }
     }
 
     final finalDuration =
@@ -270,15 +347,15 @@ class UploadViewModel extends ChangeNotifier {
     }
 
     _subiendo = true;
+    _uploadProgress = 0.05;
+    _puedeReintentar = false;
     _notificacionNativaProgramada = false;
     _avisoPortada = null;
     _error = null;
     _notify();
 
     try {
-      // Chequeo previo para UX; la regla definitiva la imponen los triggers
-      // songs_limit y albums_limit en Supabase.
-      final existingSongs = await _songRepository.getSongsByBand(bandId);
+      final existingSongs = await songRepository.getSongsByBand(bandId);
       if (existingSongs.length >= kMaxSongsPerBand) {
         _error =
             'Límite de subida alcanzado: máximo $kMaxSongsPerBand temas por banda.';
@@ -299,54 +376,60 @@ class UploadViewModel extends ChangeNotifier {
         return false;
       }
 
+      _uploadProgress = 0.15;
+      _notify();
+
       final songId = _uuid.v4();
       final selectedBytes = _selectedAudio?.bytes;
       String audioPath;
       if (selectedBytes != null && selectedBytes.isNotEmpty) {
-        audioPath = await _storageRepository.uploadAudio(
+        audioPath = await storageRepository.uploadAudio(
           bandId: bandId,
           songId: songId,
           bytes: selectedBytes,
           fileName: _selectedAudio!.name,
+          onProgress: (p) {
+            _uploadProgress = 0.15 + (p * 0.55);
+            _notify();
+          },
         );
       } else {
-        // Solo alcanzable cuando permitirSinAudioEnDemo=true con FakeStorageRepository.
         audioPath = '$bandId/$songId.mp3';
       }
 
-      // Subida de imagen de portada (si seleccionó foto)
+      _uploadProgress = 0.72;
+      _notify();
+
       String? coverUrl;
       if (_selectedImage != null && _selectedImage!.bytes.isNotEmpty) {
         try {
-          final coverPath = await _storageRepository.uploadCover(
+          final coverPath = await storageRepository.uploadCover(
             bandId: bandId,
             bytes: _selectedImage!.bytes,
             fileName: _selectedImage!.name,
+            onProgress: (p) {
+              _uploadProgress = 0.72 + (p * 0.15);
+              _notify();
+            },
           );
-          coverUrl = _storageRepository.getCoverPublicUrl(coverPath);
+          coverUrl = storageRepository.getCoverPublicUrl(coverPath);
         } catch (e) {
-          if (_storageRepository is FakeStorageRepository) {
-            // Fallback a data URI únicamente para el modo demo offline con FakeStorageRepository.
-            debugPrint(
-              'Upload cover falló en FakeStorageRepository: $e. Usando data URI demo',
-            );
-            final b64 = base64Encode(_selectedImage!.bytes);
-            final mime = _selectedImage!.name.toLowerCase().endsWith('.png')
-                ? 'image/png'
-                : 'image/jpeg';
-            coverUrl = 'data:$mime;base64,$b64';
-          } else {
-            debugPrint('Upload cover falló en Storage de Supabase: $e');
-            coverUrl = null;
-            _avisoPortada =
-                'No se pudo subir la portada; el tema se publicó sin ella.';
-          }
+          debugPrint('Upload cover falló en Storage: $e');
+          coverUrl = null;
+          _avisoPortada =
+              'No se pudo subir la portada; el tema se publicó sin ella.';
         }
       }
+
+      _uploadProgress = 0.9;
+      _notify();
 
       final resolvedGenre = (genero ?? _genero).trim().isNotEmpty
           ? (genero ?? _genero).trim()
           : kSongGenres.first;
+      final cleanLrc = (lyricsLrc != null && lyricsLrc.trim().isNotEmpty)
+          ? lyricsLrc.trim()
+          : null;
 
       final nuevaCancion = Song(
         id: songId,
@@ -360,14 +443,14 @@ class UploadViewModel extends ChangeNotifier {
         gradientColors: const [Color(0xFF1DB954), Color(0xFF191414)],
         audioUrl: audioPath,
         coverUrl: coverUrl,
+        lyricsLrc: cleanLrc,
         uploadedAt: DateTime.now(),
         playCount: 0,
       );
 
-      await _songRepository.addSong(nuevaCancion);
+      await songRepository.addSong(nuevaCancion);
 
       if (subirEnSegundoPlano) {
-        // Bloque 6: Programar notificación post-publicación en segundo plano vía Workmanager
         _notificacionNativaProgramada =
             await BackgroundUploadService.programarSubidaEnSegundoPlano(
               songTitle: titulo.trim(),
@@ -377,7 +460,8 @@ class UploadViewModel extends ChangeNotifier {
         _notificacionNativaProgramada = false;
       }
 
-      _mensajeExito = 'Tema "$titulo" publicado con éxito.';
+      _uploadProgress = 1.0;
+      _puedeReintentar = false;
       _fotoPortadaPath = null;
       _selectedImage = null;
       _nombreArchivoAudio = null;
@@ -386,6 +470,8 @@ class UploadViewModel extends ChangeNotifier {
       _songCount++;
       return true;
     } catch (e) {
+      _uploadProgress = 0.0;
+      _puedeReintentar = true;
       final errLower = e.toString().toLowerCase();
       final isLimitError =
           errLower.contains('limite_alcanzado') ||
@@ -396,9 +482,11 @@ class UploadViewModel extends ChangeNotifier {
       if (isLimitError && isAlbumError) {
         _error =
             'Límite de subida alcanzado: máximo $kMaxAlbumsPerBand álbumes por banda.';
+        _puedeReintentar = false;
       } else if (isLimitError) {
         _error =
             'Límite de subida alcanzado: máximo $kMaxSongsPerBand temas por banda.';
+        _puedeReintentar = false;
       } else {
         _error = 'Error al subir tema: $e';
       }
@@ -407,13 +495,6 @@ class UploadViewModel extends ChangeNotifier {
       _subiendo = false;
       _notify();
     }
-  }
-
-  void limpiarMensajes() {
-    _avisoPortada = null;
-    _mensajeExito = null;
-    _error = null;
-    _notify();
   }
 
   void _notify() {

@@ -12,6 +12,7 @@ class Song {
   final List<Color> gradientColors;
   final String? audioUrl;
   final String? coverUrl;
+  final String? lyricsLrc;
   final int playCount;
   final DateTime uploadedAt;
 
@@ -27,6 +28,7 @@ class Song {
     required this.gradientColors,
     this.audioUrl,
     this.coverUrl,
+    this.lyricsLrc,
     this.playCount = 0,
     required this.uploadedAt,
   });
@@ -62,6 +64,7 @@ class Song {
       gradientColors: const [Color(0xFF4A00E0), Color(0xFF8E2DE2)],
       audioUrl: json['audio_path'] as String?,
       coverUrl: resolvedCover,
+      lyricsLrc: json['lyrics_lrc'] as String?,
       playCount: (json['play_count'] as num?)?.toInt() ?? 0,
       uploadedAt: DateTime.parse(json['created_at'] as String),
     );
@@ -79,6 +82,7 @@ class Song {
     List<Color>? gradientColors,
     String? audioUrl,
     String? coverUrl,
+    String? lyricsLrc,
     int? playCount,
     DateTime? uploadedAt,
   }) {
@@ -94,6 +98,7 @@ class Song {
       gradientColors: gradientColors ?? this.gradientColors,
       audioUrl: audioUrl ?? this.audioUrl,
       coverUrl: coverUrl ?? this.coverUrl,
+      lyricsLrc: lyricsLrc ?? this.lyricsLrc,
       playCount: playCount ?? this.playCount,
       uploadedAt: uploadedAt ?? this.uploadedAt,
     );
@@ -109,6 +114,8 @@ class Song {
     'genre': genre,
     'audio_path': audioUrl ?? '',
     'duration_s': duration.inSeconds,
+    if (lyricsLrc != null && lyricsLrc!.trim().isNotEmpty)
+      'lyrics_lrc': lyricsLrc!.trim(),
   };
 
   String get formattedDuration {

@@ -4,11 +4,15 @@ class OyenteTop {
   final String nombre;
   final int minutos;
   final String ubicacion;
+  final String? avatarUrl;
+  final bool isPublic;
 
   const OyenteTop({
     required this.nombre,
     required this.minutos,
     this.ubicacion = '',
+    this.avatarUrl,
+    this.isPublic = false,
   });
 
   @override
@@ -17,10 +21,13 @@ class OyenteTop {
       other is OyenteTop &&
           nombre == other.nombre &&
           minutos == other.minutos &&
-          ubicacion == other.ubicacion;
+          ubicacion == other.ubicacion &&
+          avatarUrl == other.avatarUrl &&
+          isPublic == other.isPublic;
 
   @override
-  int get hashCode => Object.hash(nombre, minutos, ubicacion);
+  int get hashCode =>
+      Object.hash(nombre, minutos, ubicacion, avatarUrl, isPublic);
 }
 
 class TemaMetrica {
@@ -79,7 +86,6 @@ class MetricasArtista {
   final List<TemaMetrica> topTemas;
   final List<DiaMetrica> reproduccionesPorDia;
   final int totalEventosReales;
-  final bool esSimulacion;
 
   const MetricasArtista({
     required this.totalMinutos,
@@ -88,8 +94,14 @@ class MetricasArtista {
     this.topTemas = const [],
     this.reproduccionesPorDia = const [],
     this.totalEventosReales = 0,
-    this.esSimulacion = true,
   });
+
+  /// Instancia vacía por defecto cuando no hay métricas registradas.
+  static const MetricasArtista empty = MetricasArtista(
+    totalMinutos: 0,
+    totalReproducciones: 0,
+    rankingOyentes: [],
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -100,8 +112,7 @@ class MetricasArtista {
           listEquals(rankingOyentes, other.rankingOyentes) &&
           listEquals(topTemas, other.topTemas) &&
           listEquals(reproduccionesPorDia, other.reproduccionesPorDia) &&
-          totalEventosReales == other.totalEventosReales &&
-          esSimulacion == other.esSimulacion;
+          totalEventosReales == other.totalEventosReales;
 
   @override
   int get hashCode => Object.hash(
@@ -111,6 +122,5 @@ class MetricasArtista {
     Object.hashAll(topTemas),
     Object.hashAll(reproduccionesPorDia),
     totalEventosReales,
-    esSimulacion,
   );
 }

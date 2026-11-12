@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import '../models/song.dart';
 import '../repositories/interfaces/song_repository.dart';
 import '../services/audio_service.dart';
+import '../services/lrc_parser.dart';
 
 class ReproductorViewModel extends ChangeNotifier {
   Song? _cancionActual;
@@ -17,6 +18,7 @@ class ReproductorViewModel extends ChangeNotifier {
   int _indiceActual = -1;
   bool _aleatorio = false;
   bool _repetir = false;
+  List<LrcLine> _lyricsLines = const [];
 
   Timer? _playbackTimer;
   StreamSubscription? _playerStateSub;
@@ -49,7 +51,6 @@ class ReproductorViewModel extends ChangeNotifier {
 
     _playerStateSub = _audioService.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
-        // El audio terminó exactamente donde corresponde: sin silencio al final!
         if (_repetir) {
           seekTo(Duration.zero);
           resume();
@@ -64,20 +65,22 @@ class ReproductorViewModel extends ChangeNotifier {
     });
   }
 
-  // Getters públicos normalizados (Criterio C2)
   Song? get currentSong => _cancionActual;
   bool get isPlaying => _reproduciendo;
-  bool get hasSong => _cancionActual != null;
   Duration get currentPosition => _posicionActual;
   Duration get totalDuration => _duracionTotal;
-  List<Song> get queue => List.unmodifiable(_cola);
   bool get isShuffle => _aleatorio;
   bool get isRepeat => _repetir;
+
+  List<LrcLine> get lyricsLines => List.unmodifiable(_lyricsLines);
+  bool get hasLyrics => _lyricsLines.isNotEmpty;
+  int get activeLyricIndex =>
+      LrcParser.activeLineIndex(_lyricsLines, _posicionActual);
 
   String get songTitle =>
       _cancionActual?.title ?? 'Ninguna canción seleccionada';
   String get artistName =>
-      _cancionActual?.artistName ?? 'Selecciona un artista independiente';
+      _cancionActual?.artistName ?? 'Elegí una banda independiente';
 
   double get progress {
     if (_duracionTotal.inMilliseconds == 0) return 0.0;
@@ -103,10 +106,11 @@ class ReproductorViewModel extends ChangeNotifier {
     return '$minutes:$seconds';
   }
 
-  // Métodos que modifican el estado (llaman notifyListeners internamente)
   void play(Song cancion, {List<Song>? cola}) {
     _flushPlayEvent();
     _cancionActual = cancion;
+    _lyricsLines = LrcParser.parse(cancion.lyricsLrc);
+
     if (cola != null && cola.isNotEmpty) {
       _cola = List<Song>.from(cola);
       _indiceActual = _cola.indexOf(cancion);
@@ -129,13 +133,30 @@ class ReproductorViewModel extends ChangeNotifier {
     _secondsListenedCurrentSong = 0;
 
     if (cancion.audioUrl != null && cancion.audioUrl!.isNotEmpty) {
-      _audioService?.playUrl(cancion.audioUrl!);
+      _audioService?.playUrl(
+        cancion.audioUrl!,
+        songId: cancion.id,
+        title: cancion.title,
+        artist: cancion.artistName,
+        album: cancion.album,
+        coverUrl: cancion.coverUrl,
+      );
     } else {
       _audioService?.stop();
     }
 
+    _precargarSiguienteEnCola();
     _startTimer();
     notifyListeners();
+  }
+
+  void _precargarSiguienteEnCola() {
+    if (_cola.length <= 1 || _indiceActual < 0) return;
+    final nextIndex = (_indiceActual + 1) % _cola.length;
+    final nextSong = _cola[nextIndex];
+    if (nextSong.audioUrl != null && nextSong.audioUrl!.isNotEmpty) {
+      unawaited(_audioService?.precargarSiguiente(nextSong.audioUrl));
+    }
   }
 
   void pause() {
@@ -167,10 +188,6 @@ class ReproductorViewModel extends ChangeNotifier {
       _stopTimer();
     }
     notifyListeners();
-  }
-
-  void cambiarTema(Song nuevaCancion) {
-    play(nuevaCancion, cola: _cola);
   }
 
   void seekTo(Duration position) {
@@ -234,9 +251,6 @@ class ReproductorViewModel extends ChangeNotifier {
 
       _secondsListenedCurrentSong++;
 
-      // Solo avanzar la posición artificialmente si NO hay servicio de audio o el tema no tiene URL
-      // (modo demo/test offline donde no corre just_audio).
-      // Cuando hay audio real, positionStream es la única fuente de verdad fluida y sin saltos.
       final hasRealAudio =
           _audioService != null &&
           _cancionActual?.audioUrl != null &&

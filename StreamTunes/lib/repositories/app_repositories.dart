@@ -32,11 +32,13 @@ class AppRepositories {
     required this.auth,
     required this.songs,
     required this.bands,
-    required this.playlists,
-    required this.donations,
+    PlaylistRepository? playlists,
+    DonationRepository? donations,
     StorageRepository? storage,
     ReportRepository? reports,
-  }) : storage = storage ?? FakeStorageRepository(),
+  }) : playlists = playlists ?? FakePlaylistRepository(),
+       donations = donations ?? FakeDonationRepository(),
+       storage = storage ?? FakeStorageRepository(),
        reports = reports ?? FakeReportRepository();
 
   final AuthRepository auth;
@@ -46,6 +48,13 @@ class AppRepositories {
   final DonationRepository donations;
   final StorageRepository storage;
   final ReportRepository reports;
+
+  /// Indica si la app está operando con repositorios mock (en memoria)
+  bool get isUsingMock =>
+      auth is FakeAuthRepository ||
+      songs is FakeSongRepository ||
+      bands is FakeBandRepository ||
+      storage.isMock;
 
   factory AppRepositories.create({bool? useMock}) {
     if (useMock ?? AppConfig.shouldUseMock) {

@@ -46,7 +46,7 @@ class _RegisterViewState extends State<RegisterView> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
-          SessionBanner(session: session),
+          const SessionBanner(),
           const Text(
             'Una sola cuenta sirve para escuchar y, si querés, para tener tu banda.',
             style: TextStyle(color: AppTheme.textSecondary),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streamtunes/models/donation.dart';
 import 'package:streamtunes/repositories/app_repositories.dart';
 import 'package:streamtunes/repositories/fake/fake_auth_repository.dart';
@@ -18,6 +19,8 @@ import 'package:streamtunes/widgets/reproductor_scope.dart';
 import 'package:streamtunes/widgets/session_scope.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('AccountView: muestra botón de abrir panel de la banda activa', (
     tester,
   ) async {

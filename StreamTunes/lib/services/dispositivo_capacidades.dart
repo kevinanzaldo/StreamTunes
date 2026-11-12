@@ -40,6 +40,8 @@ class SelectedAudioFile {
 /// Servicio que encapsula las capacidades del dispositivo y políticas de plataforma.
 /// La UI nunca debe acceder a kIsWeb o Platform directamente; debe consultar este servicio.
 class DispositivoCapacidades {
+  static final DispositivoCapacidades actual = DispositivoCapacidades();
+
   final ImagePicker _picker;
   final bool? forzarTieneCamara;
   final Future<SelectedAudioFile?> Function()? audioPickerOverride;
@@ -52,6 +54,12 @@ class DispositivoCapacidades {
     this.audioPickerOverride,
     this.audioDurationReaderOverride,
   }) : _picker = picker ?? ImagePicker();
+
+  bool get esWeb => kIsWeb;
+  bool get soportaSegundoPlanoNativo =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   /// Getter asincrónico que determina si el dispositivo cuenta con cámara utilizable.
   Future<bool> get tieneCamara async {
@@ -120,20 +128,6 @@ class DispositivoCapacidades {
       return SelectedImageFile(name: file.name, bytes: bytes, path: file.path);
     } catch (e) {
       debugPrint('Error al seleccionar de galería: $e');
-      return null;
-    }
-  }
-
-  /// Permite a las bandas grabar historias o videos cortos (15 segundos) desde recitales o ensayos (Bloque 1).
-  Future<String?> grabarHistoriaCorta() async {
-    try {
-      final XFile? file = await _picker.pickVideo(
-        source: ImageSource.camera,
-        maxDuration: const Duration(seconds: 15),
-      );
-      return file?.name ?? file?.path;
-    } catch (e) {
-      debugPrint('Error al grabar historia con cámara: $e');
       return null;
     }
   }
@@ -223,8 +217,13 @@ class DispositivoCapacidades {
     }
   }
 
-  /// Ejecuta cálculos pesados en un hilo secundario sin congelar la UI (Criterios D3, Multiplataforma).
-  /// Encapsula Isolate.run en plataformas nativas y compute en Web.
+  /// Ordena y formatea localmente series pequeñas ya descargadas en memoria.
+  ///
+  /// NOTA TÉCNICA IMPORTANTE: En Flutter Web (`kIsWeb`), `compute` corre en el
+  /// **hilo principal de UI**, por lo que NO evita bloqueos si hubiera grandes
+  /// volúmenes de datos. Por esa razón todas las agregaciones globales
+  /// (minutos totales, top temas, top fans) se calculan en el servidor Postgres
+  /// mediante funciones RPC (`band_aggregated_stats` / `band_top_fans`).
   Future<R> ejecutarComputoPesado<T, R>(
     ComputeCallback<T, R> callback,
     T message,

@@ -49,7 +49,7 @@ class _CreateBandViewState extends State<CreateBandView> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
-          SessionBanner(session: session),
+          const SessionBanner(),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(

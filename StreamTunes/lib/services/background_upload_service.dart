@@ -61,11 +61,6 @@ class BackgroundUploadService {
         defaultTargetPlatform == TargetPlatform.iOS;
   }
 
-  @visibleForTesting
-  static void resetParaTests() {
-    _initialized = false;
-  }
-
   /// Inicialización para el isolate secundario de Workmanager.
   static Future<void> inicializarEnIsolate() async {
     if (!soportaNotificacionesNativas) return;

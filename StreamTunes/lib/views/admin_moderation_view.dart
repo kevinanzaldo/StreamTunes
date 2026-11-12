@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/band.dart';
 import '../models/report.dart';
 import '../theme/app_theme.dart';
+import '../widgets/empty_state_view.dart';
 import '../widgets/player_bar.dart';
 import '../widgets/repositories_scope.dart';
 import '../widgets/session_scope.dart';
@@ -28,7 +29,9 @@ class _AdminModerationViewState extends State<AdminModerationView>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadData();
+    });
   }
 
   @override
@@ -56,7 +59,8 @@ class _AdminModerationViewState extends State<AdminModerationView>
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('AdminModerationView _loadData error: $e\n$st');
       if (mounted) {
         setState(() {
           _error = 'Error cargando datos de moderación.';
@@ -198,14 +202,10 @@ class _AdminModerationViewState extends State<AdminModerationView>
 
   Widget _buildPendingBandsList() {
     if (_pendingBands.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text(
-            'No hay bandas pendientes de aprobación.',
-            style: TextStyle(color: AppTheme.textMuted),
-          ),
-        ),
+      return const EmptyStateView(
+        icon: Icons.check_circle_outline,
+        title: 'No hay bandas pendientes de aprobación.',
+        description: 'Todo el contenido nuevo se encuentra moderado.',
       );
     }
 
@@ -310,14 +310,10 @@ class _AdminModerationViewState extends State<AdminModerationView>
 
   Widget _buildReportsList() {
     if (_openReports.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text(
-            'No hay reportes abiertos pendientes de revisión.',
-            style: TextStyle(color: AppTheme.textMuted),
-          ),
-        ),
+      return const EmptyStateView(
+        icon: Icons.done_all,
+        title: 'No hay reportes abiertos',
+        description: 'No se encontraron denuncias de contenido pendientes.',
       );
     }
 

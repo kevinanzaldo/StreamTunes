@@ -61,7 +61,7 @@ class _LoginViewState extends State<LoginView> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
-          SessionBanner(session: session),
+          const SessionBanner(),
           Text(
             widget.message ?? 'Ingresá para armar playlists, donar y subir la música de tu banda.',
             style: const TextStyle(color: AppTheme.textSecondary),

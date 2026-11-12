@@ -24,6 +24,12 @@ abstract interface class AuthRepository {
   /// Inicia sesión o registro con Google OAuth.
   Future<void> signInWithGoogle();
 
+  /// Inicia sesión de forma anónima (sin pedir mail) para flujos rápidos como seguir vía QR.
+  Future<Profile> signInAnonymously();
+
+  /// Actualiza datos editables del perfil (ej. opt-in de perfil público para ranking).
+  Future<Profile> updateProfile(Profile profile);
+
   Future<void> sendPasswordReset(String email);
 
   /// ¿El usuario de la sesión actual es moderador del Colectivo?
