@@ -37,8 +37,8 @@ A continuación se detalla cómo el proyecto cubre con la máxima calificación 
 ### C. Arquitectura y Calidad de Código
 - **C1. Arquitectura en capas (Logrado - 3 pts):** Flujo unidireccional y desacoplado estricto: `Models` → `Repositories (Interfaces + Fakes + Supabase)` → `Services` → `ViewModels (ChangeNotifier)` → `Views/Widgets`. Ninguna vista accede a datos crudos ni a la base de datos directamente.
 - **C2. Código limpio y herramientas (Logrado - 3 pts):** `flutter analyze` reporta **0 issues** (completamente limpio en modo estricto) y `dart format .` aplicado de manera consistente en los **94 archivos** del proyecto.
-- **C3. Refactoring (Logrado - 3 pts):** Evolución documentada paso a paso en `PROGRESO.md` y commits: migración de `MockData` a repositorios abstractos, unificación de constantes (`config/app_constants.dart`), eliminación de fallbacks `data:` base64 en Storage real y reemplazo de simulaciones encubiertas por comportamientos honestos.
-- **C4. Pruebas automatizadas (Logrado - 3 pts):** **110 tests automatizados** pasando en verde al 100% (`flutter test`), cubriendo tests de widgets, view models, lógica de sesión, concurrencia determinística en `Isolate`, subida real, mapeo de errores SQL, notificaciones multiplataforma y panel de moderación.
+- **C3. Refactoring (Logrado - 3 pts):** Evolución documentada paso a paso en el historial de commits y documentación técnica: migración de `MockData` a repositorios abstractos, unificación de constantes (`config/app_constants.dart`), eliminación de fallbacks `data:` base64 en Storage real y reemplazo de simulaciones encubiertas por comportamientos honestos.
+- **C4. Pruebas automatizadas (Logrado - 3 pts):** **132 tests automatizados** pasando en verde al 100% (`flutter test`), cubriendo tests de widgets, view models, lógica de sesión, concurrencia determinística en `Isolate`, subida real, mapeo de errores SQL, notificaciones multiplataforma y panel de moderación.
 
 ### D. Concurrencia y Capacidades de Dispositivo
 - **D1. Capacidades y permisos (Logrado - 3 pts):** Detección de cámara (`ImagePicker` con soporte real de cámara en móvil y galería en web) y selector de archivos de audio con lectura real de duración (`FilePicker` + `just_audio` / duración probada) encapsulados en `DispositivoCapacidades`.
@@ -151,31 +151,7 @@ Para asegurar una presentación fluida ante la mesa evaluadora y Kiwi, se estruc
 
 ---
 
-## 5. Propuesta Económica y Cotización de Abono Mensual (Para Kiwi Delmonte)
-
-En respuesta al requerimiento planteado por Kiwi Delmonte en la entrevista (§2.2, punto 63: *"No tienen a nadie técnico: cotizar abono mensual"*), se presenta la siguiente propuesta estructurada:
-
-### 5.1 Plan de Soporte y Mantenimiento Técnico Continuo
-- **Monitoreo de Infraestructura y Base de Datos:**
-  - Control de volumen de almacenamiento de audio en Supabase Storage (asegurando el límite de 115 MB por banda a 192 kbps).
-  - Supervisión de topes de gasto (*spend cap*) para asegurar que la factura de los servidores permanezca en \$0 o dentro del rango previsto.
-  - Mantenimiento y optimización de políticas RLS y triggers de cuotas.
-- **Soporte a Moderadores del Colectivo:**
-  - Asistencia técnica semanal para la mesa de moderación ante reportes complejos o reclamos de autoría.
-- **Actualizaciones y Mantenimiento Evolutivo:**
-  - Corrección de bugs y actualización periódica de dependencias de Flutter y plugins de audio.
-  - Backups semanales automatizados de la base de datos PostgreSQL.
-
-### 5.2 Cotización Estimada
-| Concepto | Detalle | Costo Mensual Sugerido |
-|---|---|---|
-| **Abono de Mantenimiento Base** | Monitoreo, backups semanales, soporte técnico hasta 10 hs/mes y actualización de dependencias | **\$45.000 ARS / mes** |
-| **Infraestructura Cloud (Supabase Free Tier)** | Base de datos PostgreSQL + 1 GB de Storage (hasta ~15 bandas activas con cupo completo) | **\$0 (Costo Cero)** |
-| **Escalamiento Pro (Opcional a futuro)** | Plan Supabase Pro (100 GB Storage para más de 800 bandas independientes) | **~\$25 USD / mes** (a cargo del Colectivo cuando crezca la masa de bandas) |
-
----
-
-## 6. Limitaciones conocidas
+## 5. Limitaciones conocidas
 
 Para mantener total transparencia técnica durante la defensa ante el cliente y la mesa evaluadora, se distingue explícitamente qué partes operan de extremo a extremo contra infraestructura real y cuáles cumplen un rol demostrativo o tienen restricciones de plataforma:
 
@@ -195,7 +171,7 @@ Para mantener total transparencia técnica durante la defensa ante el cliente y 
 
 ---
 
-## 7. Evidencia de dispositivo real
+## 6. Evidencia de dispositivo real
 
 > Plantilla para completar manualmente tras instalar y probar la app en hardware físico antes o después de la defensa:
 
@@ -205,12 +181,12 @@ Para mantener total transparencia técnica durante la defensa ante el cliente y 
 | **Versión de Android** | _Pendiente (ej. Android 14)_ |
 | **Fecha de prueba** | _Pendiente (`YYYY-MM-DD`)_ |
 | **Captura / Video** | _Pendiente (enlace o ruta de captura/video grabada)_ |
-| **Link de la PWA desplegada** | _Pendiente (URL pública si se despliega; local: `ver_web_local.bat`)_ |
+| **Link de la PWA desplegada** | _Pendiente (URL pública si se despliega; local: `scripts/ver_web_local.bat`)_ |
 | **Checklist manual en móvil** | [ ] APK release firmado instalado · [ ] Cámara real (`D1`) · [ ] Notificación nativa (`E1`) · [ ] Workmanager (`E2`) · [ ] Pausa/reanudación en llamada (`E3`) |
 
 ---
 
-## 8. Conclusión y Entrega
+## 7. Conclusión y Entrega
 
-El proyecto StreamTunes cuenta con toda la arquitectura en capas, **110 tests automatizados** en verde, análisis estático limpio (`0 issues`) y PWA compilada en `build/web/` para defensa conectada a Supabase (`env.json`) o completamente offline (`USE_MOCK=true`), dejando documentadas explícitamente las validaciones físicas pendientes en dispositivo Android real y en el panel de Supabase.
+El proyecto StreamTunes cuenta con toda la arquitectura en capas, **132 tests automatizados** en verde, análisis estático limpio y soporte para ejecución conectada a Supabase (`env.json`) o completamente offline (`USE_MOCK=true`), dejando documentadas explícitamente las validaciones físicas pendientes en dispositivo Android real y en el panel de Supabase.
 

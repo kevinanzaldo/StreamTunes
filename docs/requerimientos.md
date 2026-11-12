@@ -30,62 +30,62 @@ Son aquellos pedidos que aportan valor real a la experiencia del fan y de la ban
 
 ---
 
-## 2. Señales de Alerta e Invenciones que Hay que Frenar
+## 2. Gestión de Riesgos de Infraestructura y Alcance Técnico
 
-Puntos críticos planteados por el cliente que conllevan inviabilidad económica, legal, técnica u operativa si no se encuadran dentro de límites realistas:
+Análisis técnico de riesgos de viabilidad económica, legal, técnica y operativa, junto con las mitigaciones arquitectónicas implementadas para encuadrar el MVP dentro de límites sustentables:
 
-### Alerta 1: Música gratis ilimitada sin publicidad ni modelo de monetización
+### Riesgo 1: Streaming sin modelo de monetización directo
 - **Riesgo:** El streaming de audio genera consumo continuo de ancho de banda y almacenamiento (egress traffic). En la nube no existe el ancho de banda gratuito infinito.
 - **Impacto:** Si un tema se reproduce miles de veces, los costos de transferencia superarán rápidamente el presupuesto de una banda under independiente.
-- **Acción:** Establecer un modelo sustentable (fondo colectivo por donaciones voluntarias, topes de temas por banda y compresión eficiente en AAC/MP3 a 128-192 kbps).
+- **Mitigación implementada:** Establecer un modelo sustentable (fondo colectivo por donaciones voluntarias, topes de temas por banda y compresión eficiente en AAC/MP3 a 128-192 kbps).
 
-### Alerta 2: Hosting "lo dejamos andando nosotros" y límites de Supabase Free
+### Riesgo 2: Capacidad de hosting y límites de Supabase Free
 - **Riesgo:** El plan gratuito de Supabase (Free Tier) tiene restricciones estrictas:
   - Base de datos: máx. 500 MB.
   - Almacenamiento Storage: máx. 1 GB total.
   - Transferencia de Storage (egress): máx. 2 GB mensuales.
   - Conexiones concurrentes Realtime: 200 clientes en vivo.
   - Pausa por inactividad: si el proyecto pasa 7 días sin consultas, Supabase lo pausa automáticamente.
-- **Impacto:** Un recital con 300 fans conectados simultáneamente saturará el límite de Realtime (200), y la transferencia de 2 GB se agotará con pocas horas de streaming.
-- **Acción:** Definir quién es el titular de la tarjeta de crédito para la suscripción a Supabase Pro ($25 USD/mes) o un hosting autoalojado en VPS (Docker/Coolify).
+- **Impacto:** Un recital con alta concurrencia simultánea puede saturar el límite de Realtime (200), y la transferencia de 2 GB se agotaría rápidamente con streaming continuo.
+- **Mitigación implementada:** Modo offline desacoplado con mocks (`USE_MOCK=true`) para pruebas y contingencias, con opción documentada de suscripción a Supabase Pro ($25 USD/mes) o hosting propio en VPS (Docker/Coolify).
 
-### Alerta 3: Donaciones "sin comisión" y muro público tipo Twitch
+### Riesgo 3: Comisiones de pasarelas de pago en donaciones
 - **Riesgo:** No existen pasarelas de pago que procesen transacciones financieras sin cobrar comisión.
-- **Impacto:** Mercado Pago cobra entre 3.19% y 6.39% + IVA según el plazo de acreditación; Stripe cobra 3.99% + 0.50 USD. Prometer que "el dinero llega 100% directo sin comisión" es financieramente imposible.
-- **Acción:** Comunicar con transparencia en la UI el desglose de tarifas de la pasarela y documentar que StreamTunes como plataforma comunitaria no retiene comisión propia.
+- **Impacto:** Mercado Pago cobra entre 3.19% y 6.39% + IVA según el plazo de acreditación; Stripe cobra 3.99% + 0.50 USD. Prometer que el monto transferido llega íntegro sin costos de procesamiento es financieramente inviable.
+- **Mitigación implementada:** Comunicar con transparencia en la UI el desglose de tarifas de la pasarela y documentar que StreamTunes como plataforma comunitaria no retiene comisión propia.
 
-### Alerta 4: Devolución de donaciones: "eso se soluciona después"
-- **Riesgo:** Desentenderse de la política de reembolsos expone a contracargos bancarios (chargebacks), costos por disputa ($15 USD en procesadores internacionales), congelamiento de cuentas y reclamos en Defensa del Consumidor.
-- **Acción:** Fijar en términos y condiciones que las donaciones son aportes voluntarios no reembolsables, o habilitar un flujo formal de contacto con soporte antes de procesar el pago.
+### Riesgo 4: Política de devoluciones y contracargos en donaciones
+- **Riesgo:** La ausencia de una política clara de reembolsos expone a contracargos bancarios (chargebacks), costos por disputa en procesadores de pago y eventuales reclamos.
+- **Mitigación implementada:** Fijar en términos y condiciones que las donaciones son aportes voluntarios no reembolsables, o habilitar un flujo formal de contacto con soporte antes de procesar el pago.
 
-### Alerta 5: Subida de discos completos en WAV sin comprimir de ~1 GB
+### Riesgo 5: Subida de archivos WAV sin comprimir (~1 GB por disco)
 - **Riesgo:** Supabase Storage Free limita el tamaño máximo por archivo a **50 MB**. Un WAV crudo de 1 GB no puede subirse directamente.
 - **Impacto:** Saturaría el bucket con un solo disco y consumiría el cupo mensual en la primera descarga.
-- **Acción:** La app valida el límite de 50 MB en cliente (`kMaxAudioFileSizeBytes = 52.428.800 bytes`) y orienta al músico a subir archivos en formato MP3 o AAC/M4A a 320 kbps (que pesan menos de 15 MB por tema y conservan fidelidad óptima), reservando la transcodificación masiva en servidor para una etapa con infraestructura dedicada.
+- **Mitigación implementada:** La app valida el límite de 50 MB en cliente (`kMaxAudioFileSizeBytes = 52.428.800 bytes`) y orienta al músico a subir archivos en formato MP3 o AAC/M4A a 320 kbps (que pesan menos de 15 MB por tema y conservan fidelidad óptima), reservando la transcodificación masiva en servidor para una etapa con infraestructura dedicada.
 
-### Alerta 6: Subidas en segundo plano en Web / PWA (Workmanager)
+### Riesgo 6: Subidas en segundo plano en Web / PWA (Workmanager)
 - **Riesgo:** La API nativa `Workmanager` de Android no existe en navegadores web. Si un usuario cierra la pestaña o bloquea el navegador mientras se sube un archivo grande, el hilo de JavaScript se suspende y la subida se cancela.
-- **Acción:** En web, `UploadViewModel` advierte de forma explícita al usuario: *"En la versión web, no cierres esta pestaña hasta que la subida termine"*. En Android nativo, se programa el worker en background con notificación de progreso en la barra de tareas.
+- **Mitigación implementada:** En web, `UploadViewModel` advierte de forma explícita al usuario: *"En la versión web, no cierres esta pestaña hasta que la subida termine"*. En Android nativo, se programa el worker en background con notificación de progreso en la barra de tareas.
 
-### Alerta 7: Tienda de merchandising "urgente" dentro del reproductor
-- **Riesgo:** Construir un e-commerce completo (gestión de stock, talles de remeras, carritos, envíos por correo, cálculo de fletes y facturación) desvía el foco del MVP y requiere meses de desarrollo adicional.
-- **Acción:** Se incorporó un botón destacado de "Tienda oficial" en el perfil de la banda (`merch_url`), enlazando directamente a la tienda externa oficial de la banda (ej. Tiendanube, Mercado Libre o Bandcamp), resolviendo la necesidad de ventas sin riesgo técnico.
+### Riesgo 7: Comercio electrónico de merchandising dentro del reproductor
+- **Riesgo:** Construir un e-commerce completo (gestión de stock, talles, carritos, logística de envíos y facturación) desvía el foco del MVP y requiere meses de desarrollo adicional.
+- **Mitigación implementada:** Se incorporó un botón destacado de "Tienda oficial" en el perfil de la banda (`merch_url`), enlazando directamente a la tienda externa oficial de la banda (ej. Tiendanube, Mercado Libre o Bandcamp), resolviendo la necesidad de ventas sin riesgo técnico.
 
-### Alerta 8: Derechos de autor y licencias (SADAIC / AADI-CAPIF)
+### Riesgo 8: Derechos de autor y licencias (SADAIC / AADI-CAPIF)
 - **Riesgo:** Si las bandas suben covers, reversiones o temas con samples no autorizados, la plataforma es pasible de intimaciones legales por derechos de propiedad intelectual.
-- **Acción:** Módulo de moderación (`AdminModerationView`) y sistema de denuncias ciudadanas de contenido (`ReportRepository`), con aprobación previa de bandas antes de su publicación general.
+- **Mitigación implementada:** Módulo de moderación (`AdminModerationView`) y sistema de denuncias comunitarias de contenido (`ReportRepository`), con aprobación previa de bandas antes de su publicación general.
 
 ---
 
-## 3. Repreguntas Abiertas para la Próxima Reunión con Kiwi
+## 3. Puntos de Validación y Alineación Funcional
 
-Preguntas formuladas en tono constructivo y en español rioplatense (voseo) para alinear expectativas sin tecnicismos agresivos:
+Puntos a consensuar en reuniones de seguimiento para alinear expectativas operativas:
 
-1. *"Para el recital de marzo, ¿cuánta gente calculan que va a escanear el QR al mismo tiempo? Así dejamos dimensionado el servidor para que no se quede colgado si entran todos juntos."*
-2. *"Con el tema de las donaciones, las tarjetas y billeteras (como Mercado Pago) descuentan una pequeña comisión operativa por cada cobro. ¿Quieren que el fan vea el monto neto exacto que les llega a ustedes o prefieren absorber la tarifa?"*
-3. *"Sobre la calidad de audio: los discos en WAV pesan cerca de 1 GB y gastan los datos móviles de los fans en dos temas. ¿Les parece bien que la app acepte MP3 y M4A en alta definición (320 kbps), que suena idéntico en celulares y auriculares y carga al instante?"*
-4. *"Para el merch de remeras y vinilos, en vez de obligarlos a cargar inventario y configurar envíos dentro de la app, dejamos un botón directo a su tienda o link de contacto. ¿Tienen ya algún link armado (Tiendanube, Instagram o Mercado Shops) para vincular?"*
-5. *"Si alguien dona por error en medio del recital y pide anularlo al día siguiente, ¿cómo prefieren manejarlo? ¿Definimos un mail de contacto de la banda o una aclaración de que las donaciones son finales?"*
+1. **Concurrencia en eventos en vivo:** Dimensionar la capacidad simultánea esperada en recitales con escaneo de QR para estimar el ancho de banda y conexiones de Realtime necesarias.
+2. **Esquema de comisiones en donaciones:** Consensuar si el fan debe visualizar el monto neto final que recibe la banda o si las deducciones de la pasarela se absorben operativamente.
+3. **Formatos y calidad de masterización:** Ratificar el estándar de subida en MP3 y M4A de alta fidelidad (hasta 320 kbps) frente a WAV crudo para optimizar el plan de almacenamiento.
+4. **Integración con canales de merchandising:** Relevar plataformas externas activas de cada banda (Tiendanube, Mercado Shops, Instagram) para configurar los enlaces directos en sus perfiles.
+5. **Procedimiento ante donaciones erróneas:** Establecer un canal oficial de contacto por correo electrónico para gestionar solicitudes de aclaración o reclamos.
 
 ---
 

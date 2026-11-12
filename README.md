@@ -6,9 +6,9 @@ Plataforma de streaming de música para bandas independientes y música under. D
 
 ## 📌 Documentación del Proyecto
 
-- 📘 [**Plan Maestro (`STREAMTUNES_PLAN_MAESTRO.md`)**](STREAMTUNES_PLAN_MAESTRO.md): Requerimientos del cliente (Kiwi Delmonte), arquitectura, esquema de base de datos SQL y mapeo contra la grilla de evaluación EGI.
-- 📋 [**Progreso y Checkpoints (`PROGRESO.md`)**](PROGRESO.md): Bitácora de trabajo fase por fase con métricas de tests y decisiones de diseño.
-- 🎓 [**Informe Final y Guía de Defensa (`INFORME_FINAL_Y_DEFENSA.md`)**](INFORME_FINAL_Y_DEFENSA.md): Mapeo exhaustivo de los 18 criterios de evaluación EGI, guion de demostración paso a paso y cotización de mantenimiento.
+- 📘 [**Arquitectura y Modelo de Datos (`docs/arquitectura.md`)**](docs/arquitectura.md): Arquitectura en capas, esquema relacional en PostgreSQL (Supabase), políticas RLS y Storage.
+- 📋 [**Requerimientos y Análisis de Alcance (`docs/requerimientos.md`)**](docs/requerimientos.md): Análisis de viabilidad, mitigación de riesgos de infraestructura y puntos de validación con el cliente.
+- 🎓 [**Informe Final y Guía de Defensa (`docs/informe-final.md`)**](docs/informe-final.md): Mapeo exhaustivo de los 18 criterios de evaluación EGI, guion de demostración paso a paso y limitaciones conocidas.
 
 ---
 
